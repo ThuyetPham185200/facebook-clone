@@ -15,7 +15,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -165,7 +164,7 @@ func (a *App) requestsMonitor(stop <-chan struct{}) {
 func (a *App) process(req model.RawRequestData) {
 	start := time.Now()
 	requestID := utils.NewRequestID()
-	fmt.Printf("req.IP = %s\n", req.IP)
+	//fmt.Printf("req.IP = %s\n", req.IP)
 	if !a.ratelimiter.IPLimiter.Allow(req.IP) {
 		fmt.Printf("RATE_LIMIT_IP Too Many Requests (IP) = %s\n", req.IP)
 		req.ReplyCh <- a.normalizedError(requestID, http.StatusTooManyRequests, "RATE_LIMIT_IP", "Too Many Requests (IP)", time.Since(start))
@@ -174,7 +173,8 @@ func (a *App) process(req model.RawRequestData) {
 
 	// Chỉ check JWT nếu endpoint cần auth
 	if a.gmodel.TopicAuthMap[req.Topic] {
-		if !a.jwtChecker(req.Token) {
+		if !a.jwtchecker.TokenCheck(req.Token) {
+			fmt.Printf("UNAUTHENTICATED Unauthorized (JWT) = %s\n", time.Since(start).String())
 			req.ReplyCh <- a.normalizedError(requestID, http.StatusUnauthorized, "UNAUTHENTICATED", "Unauthorized (JWT)", time.Since(start))
 			return
 		}
@@ -191,7 +191,6 @@ func (a *App) process(req model.RawRequestData) {
 
 // ===== Mock middlewares =====
 
-func (a *App) jwtChecker(token string) bool         { return strings.HasPrefix(token, "Bearer ") }
 func (a *App) featureRateLimiter(topic string) bool { return true }
 
 // ===== Routing =====
@@ -224,13 +223,13 @@ func (a *App) routeToInternalService(req model.RawRequestData, requestID string,
 
 	respBody, _ := io.ReadAll(resp.Body)
 
-	// log.Println("====== Internal Service Response ======")
-	// log.Printf("RequestID: %s | Status: %d %s | Latency: %dms", requestID, resp.StatusCode, http.StatusText(resp.StatusCode), latency.Milliseconds())
-	// for k, v := range resp.Header {
-	// 	log.Printf("%s: %v", k, v)
-	// }
-	// log.Println("Body:", string(respBody))
-	// log.Println("======================================")
+	log.Println("====== Internal Service Response ======")
+	log.Printf("RequestID: %s | Status: %d %s | Latency: %dms", requestID, resp.StatusCode, http.StatusText(resp.StatusCode), latency.Milliseconds())
+	for k, v := range resp.Header {
+		log.Printf("%s: %v", k, v)
+	}
+	log.Println("Body:", string(respBody))
+	log.Println("======================================")
 
 	out := map[string]interface{}{
 		"request_id": requestID,
