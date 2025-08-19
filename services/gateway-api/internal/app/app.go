@@ -165,6 +165,12 @@ func (a *App) process(req model.RawRequestData) {
 	start := time.Now()
 	requestID := utils.NewRequestID()
 	//fmt.Printf("req.IP = %s\n", req.IP)
+	if !a.ratelimiter.MaxReqLimiter.Allow("Max-Request-Per-Second") {
+		fmt.Printf("RATE_LIMIT_MAX_REQUEST Too Many Requests\n")
+		req.ReplyCh <- a.normalizedError(requestID, http.StatusTooManyRequests, "RATE_LIMIT_MAX_REQUEST", "Too Many Requests", time.Since(start))
+		return
+	}
+
 	if !a.ratelimiter.IPLimiter.Allow(req.IP) {
 		fmt.Printf("RATE_LIMIT_IP Too Many Requests (IP) = %s\n", req.IP)
 		req.ReplyCh <- a.normalizedError(requestID, http.StatusTooManyRequests, "RATE_LIMIT_IP", "Too Many Requests (IP)", time.Since(start))
@@ -172,15 +178,24 @@ func (a *App) process(req model.RawRequestData) {
 	}
 
 	// Chỉ check JWT nếu endpoint cần auth
+	var claims *jwt_checker.Claims // khai báo trước
 	if a.gmodel.TopicAuthMap[req.Topic] {
-		if !a.jwtchecker.TokenCheck(req.Token) {
+		var ok bool
+		claims, ok = a.jwtchecker.TokenCheck(req.Token)
+		if !ok {
 			fmt.Printf("UNAUTHENTICATED Unauthorized (JWT) = %s\n", time.Since(start).String())
 			req.ReplyCh <- a.normalizedError(requestID, http.StatusUnauthorized, "UNAUTHENTICATED", "Unauthorized (JWT)", time.Since(start))
 			return
 		}
 	}
 
-	if !a.featureRateLimiter(req.Topic) {
+	userID := "anonymous" // default nếu không auth
+	if claims != nil {
+		userID = claims.UserID
+	}
+	key := userID + ":" + req.Topic
+	if !a.ratelimiter.FeatureLimiter.Allow(key) {
+		fmt.Println("RATE_LIMIT_FEATURE Too Many Requests (Feature) %s", key)
 		req.ReplyCh <- a.normalizedError(requestID, http.StatusTooManyRequests, "RATE_LIMIT_FEATURE", "Too Many Requests (Feature)", time.Since(start))
 		return
 	}
@@ -188,10 +203,6 @@ func (a *App) process(req model.RawRequestData) {
 	res := a.routeToInternalService(req, requestID, start)
 	req.ReplyCh <- res
 }
-
-// ===== Mock middlewares =====
-
-func (a *App) featureRateLimiter(topic string) bool { return true }
 
 // ===== Routing =====
 func (a *App) routeToInternalService(req model.RawRequestData, requestID string, start time.Time) model.GatewayResult {
@@ -223,13 +234,13 @@ func (a *App) routeToInternalService(req model.RawRequestData, requestID string,
 
 	respBody, _ := io.ReadAll(resp.Body)
 
-	log.Println("====== Internal Service Response ======")
-	log.Printf("RequestID: %s | Status: %d %s | Latency: %dms", requestID, resp.StatusCode, http.StatusText(resp.StatusCode), latency.Milliseconds())
-	for k, v := range resp.Header {
-		log.Printf("%s: %v", k, v)
-	}
-	log.Println("Body:", string(respBody))
-	log.Println("======================================")
+	// log.Println("====== Internal Service Response ======")
+	// log.Printf("RequestID: %s | Status: %d %s | Latency: %dms", requestID, resp.StatusCode, http.StatusText(resp.StatusCode), latency.Milliseconds())
+	// for k, v := range resp.Header {
+	// 	log.Printf("%s: %v", k, v)
+	// }
+	// log.Println("Body:", string(respBody))
+	// log.Println("======================================")
 
 	out := map[string]interface{}{
 		"request_id": requestID,

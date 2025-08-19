@@ -2,7 +2,7 @@ package jwt_checker
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -47,22 +47,30 @@ func (j *JWTChecker) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func (j *JWTChecker) TokenCheck(authHeader string) bool {
+func (j *JWTChecker) TokenCheck(authHeader string) (*Claims, bool) {
 	if authHeader == "" {
-		fmt.Println("Missing Authorization header")
-		return false
+		log.Println("Missing Authorization header")
+		return nil, false
 	}
 
-	parts := strings.Split(authHeader, " ")
+	parts := strings.Fields(authHeader)
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		fmt.Println("Invalid Authorization format")
-		return false
+		log.Println("Invalid Authorization format")
+		return nil, false
 	}
 
-	_, err := j.Strategy.Verify(parts[1])
+	token := parts[1]
+	claims, err := j.Strategy.Verify(token)
 	if err != nil {
-		fmt.Println("Invalid token")
-		return false
+		log.Printf("Invalid token: %v\n", err)
+		return nil, false
 	}
-	return true
+
+	// Optional: kiểm tra UserID không rỗng
+	if claims == nil || claims.UserID == "" {
+		log.Println("Token has empty UserID")
+		return nil, false
+	}
+
+	return claims, true
 }
