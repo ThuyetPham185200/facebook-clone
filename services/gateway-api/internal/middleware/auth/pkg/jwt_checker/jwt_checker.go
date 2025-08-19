@@ -2,6 +2,7 @@ package jwt_checker
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -44,4 +45,24 @@ func (j *JWTChecker) Middleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), "user", claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (j *JWTChecker) TokenCheck(authHeader string) bool {
+	if authHeader == "" {
+		fmt.Println("Missing Authorization header")
+		return false
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		fmt.Println("Invalid Authorization format")
+		return false
+	}
+
+	_, err := j.Strategy.Verify(parts[1])
+	if err != nil {
+		fmt.Println("Invalid token")
+		return false
+	}
+	return true
 }
