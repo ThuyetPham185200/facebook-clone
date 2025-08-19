@@ -2,7 +2,6 @@
 package algorithm
 
 import (
-	"rate-limiter/repository"
 	"sync"
 	"time"
 )
@@ -10,7 +9,6 @@ import (
 type TokenBucketAlgorithm struct {
 	buckets map[string]*TokenBucket
 	mu      sync.Mutex
-	repo    repository.RedisStateRepository
 }
 
 type TokenBucket struct {
@@ -20,10 +18,9 @@ type TokenBucket struct {
 	LastRefill time.Time
 }
 
-func NewTokenBucketAlgorithm(repo repository.RedisStateRepository) *TokenBucketAlgorithm {
+func NewTokenBucketAlgorithm() *TokenBucketAlgorithm {
 	return &TokenBucketAlgorithm{
 		buckets: make(map[string]*TokenBucket),
-		repo:    repo,
 	}
 }
 

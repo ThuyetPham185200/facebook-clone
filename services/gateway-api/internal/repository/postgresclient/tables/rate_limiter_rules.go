@@ -1,9 +1,7 @@
 // dbclient/tables/rate_limiter_rules.go
 package tables
 
-import (
-	dbclient "postgresclient"
-)
+import dbclient "gatewayapi/internal/repository/postgresclient"
 
 type RateLimiterRulesTable struct {
 	dbclient.BaseTable

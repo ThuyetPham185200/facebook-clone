@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	jwt_checker "auth/pkg/jwt_checker"
+	jwt_checker "gatewayapi/internal/middleware/auth/pkg/jwt_checker"
 )
 
 func main() {

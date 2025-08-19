@@ -1,6 +1,6 @@
 package tables
 
-import dbclient "postgresclient"
+import dbclient "gatewayapi/internal/repository/postgresclient"
 
 // UsersTable kế thừa BaseTable
 type UsersTable struct {

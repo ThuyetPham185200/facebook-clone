@@ -2,7 +2,7 @@
 package limiter
 
 import (
-	"rate-limiter/algorithm"
+	"gatewayapi/internal/middleware/ratelimiter/algorithm"
 	"strings"
 )
 

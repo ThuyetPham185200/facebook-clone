@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	ratelimiter "gatewayapi/internal/middleware/ratelimiter" // <--- dùng module name từ go.mod
 	"math/rand"
-	ratelimiter "rate-limiter" // <--- dùng module name từ go.mod
 	"sync"
 	"time"
 )

@@ -1,7 +1,7 @@
 // internal/limiter/ip_limiter.go
 package limiter
 
-import "rate-limiter/algorithm"
+import "gatewayapi/internal/middleware/ratelimiter/algorithm"
 
 type IPRateLimiter struct {
 	algorithm algorithm.RateLimitAlgorithm

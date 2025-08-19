@@ -11,6 +11,16 @@ type JWTChecker struct {
 	Strategy JWTStrategy
 }
 
+func NewJWTChecker() *JWTChecker {
+	// Tạo strategy dùng HS256
+	strategy := &HS256Strategy{
+		SecretKey: "supersecret",
+	}
+	// Tạo middleware checker
+	jwtCheck := &JWTChecker{Strategy: strategy}
+	return jwtCheck
+}
+
 func (j *JWTChecker) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")

@@ -2,8 +2,8 @@
 package factory
 
 import (
-	"rate-limiter/algorithm"
-	"rate-limiter/limiter"
+	"gatewayapi/internal/middleware/ratelimiter/algorithm"
+	"gatewayapi/internal/middleware/ratelimiter/limiter"
 )
 
 type LimiterType string
