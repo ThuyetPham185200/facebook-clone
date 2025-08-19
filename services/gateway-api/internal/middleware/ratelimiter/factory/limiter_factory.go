@@ -9,8 +9,9 @@ import (
 type LimiterType string
 
 const (
-	IP      LimiterType = "ip"
-	Feature LimiterType = "feature"
+	IP         LimiterType = "ip"
+	Feature    LimiterType = "feature"
+	MaxRequest LimiterType = "maxrequest"
 )
 
 func CreateLimiter(t LimiterType, algo algorithm.RateLimitAlgorithm, limit int, featureLimits map[string]int) limiter.RateLimiter {
@@ -19,6 +20,8 @@ func CreateLimiter(t LimiterType, algo algorithm.RateLimitAlgorithm, limit int, 
 		return limiter.NewIPRateLimiter(algo, limit)
 	case Feature:
 		return limiter.NewFeatureRateLimiter(algo, featureLimits)
+	case MaxRequest:
+		return limiter.NewMaxRequestLimiter(algo, limit)
 	default:
 		return nil
 	}

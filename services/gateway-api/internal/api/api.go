@@ -61,7 +61,7 @@ var UserService = ServiceGroup{
 			Name:        "GetUserProfile",
 			Method:      http.MethodGet,
 			Path:        "/users/{user_id}",
-			RequireAuth: false, // tùy chọn
+			RequireAuth: true, // tùy chọn
 		},
 		{
 			Name:        "UpdateOwnProfile",
@@ -88,7 +88,7 @@ var PostsService = ServiceGroup{
 			Name:        "GetPost",
 			Method:      http.MethodGet,
 			Path:        "/posts/{post_id}",
-			RequireAuth: false, // tùy chọn
+			RequireAuth: true, // tùy chọn
 		},
 		{
 			Name:        "GetUserPosts",
@@ -133,7 +133,7 @@ var ReactionsService = ServiceGroup{
 			Name:        "GetReactions",
 			Method:      http.MethodGet,
 			Path:        "/posts/{post_id}/reactions",
-			RequireAuth: false, // tùy chọn
+			RequireAuth: true, // tùy chọn
 		},
 		{
 			Name:        "ReactToPost",
