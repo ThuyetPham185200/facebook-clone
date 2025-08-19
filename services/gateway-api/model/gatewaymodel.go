@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	apis "gatewayapi/internal/api"
 	"net/http"
 )
 
@@ -24,12 +25,30 @@ type GatewayResult struct {
 }
 
 type GatewayModel struct {
-	RequestQueue chan RawRequestData
+	RequestQueue  chan RawRequestData
+	TopicAuthMap  map[string]bool
+	ServiceGroups []apis.ServiceGroup
 }
 
 func NewGatewayModel() *GatewayModel {
-	return &GatewayModel {
-		RequestQueue : make(chan RawRequestData, 1024)
+	var gateway = &GatewayModel{}
+	gateway.RequestQueue = make(chan RawRequestData, 1024)
+	gateway.ServiceGroups = []apis.ServiceGroup{
+		apis.AuthService,
+		apis.UserService,
+		apis.PostsService,
+		apis.ReactionsService,
 	}
+	gateway.TopicAuthMap = make(map[string]bool)
+	gateway.initTopicAuthMap()
+	return gateway
 }
 
+func (g *GatewayModel) initTopicAuthMap() {
+	for _, sg := range g.ServiceGroups {
+		for _, ep := range sg.Endpoints {
+			topic := sg.Name + "/" + ep.Name
+			g.TopicAuthMap[topic] = ep.RequireAuth
+		}
+	}
+}

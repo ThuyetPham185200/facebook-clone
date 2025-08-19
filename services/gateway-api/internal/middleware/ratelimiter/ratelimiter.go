@@ -1,9 +1,9 @@
 package ratelimiter
 
 import (
-	"rate-limiter/algorithm"
-	"rate-limiter/factory"
-	"rate-limiter/limiter"
+	"gatewayapi/internal/middleware/ratelimiter/algorithm"
+	"gatewayapi/internal/middleware/ratelimiter/factory"
+	"gatewayapi/internal/middleware/ratelimiter/limiter"
 )
 
 type RateLimiter struct {
@@ -22,12 +22,12 @@ func NewRateLimiter() *RateLimiter {
 		"follow":   5,
 	}
 
-	algo := algorithm.NewTokenBucketAlgorithm(nil)
+	algo := algorithm.NewTokenBucketAlgorithm()
 
 	return &RateLimiter{
 		Limits:         limits,
 		Algo:           algo,
-		IPLimiter:      factory.CreateLimiter(factory.IP, algo, 10000, nil).(*limiter.IPRateLimiter),
+		IPLimiter:      factory.CreateLimiter(factory.IP, algo, 2000, nil).(*limiter.IPRateLimiter),
 		FeatureLimiter: factory.CreateLimiter(factory.Feature, algo, 0, limits).(*limiter.FeatureRateLimiter),
 	}
 }

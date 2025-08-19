@@ -1,8 +1,8 @@
 package main
 
 import (
-	dbclient "postgresclient"
-	"postgresclient/tables"
+	dbclient "gatewayapi/internal/repository/postgresclient"
+	"gatewayapi/internal/repository/postgresclient/tables"
 )
 
 func main() {
