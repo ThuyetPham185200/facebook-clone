@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	redisclient "redis-client"
+	redisclient "gatewayapi/internal/repository/redisclient"
 )
 
 func main() {
