@@ -50,17 +50,19 @@ func (a *App) Start() {
 func (a *App) Stop() {
 	close(a.gmodel.RequestQueue)
 	close(stopRequestMonitor)
+	a.gateWayrepo.Close()
 	if err := a.httpserver.Stop(); err != nil {
 		log.Printf("⚠️ Error stopping server: %v", err)
 	}
 	log.Println("✅ Server stopped gracefully")
 }
 
+// ///////////////////////////////////////////////////////////////////////////////////////
 func (a *App) init() {
 	a.jwtchecker = jwt_checker.NewJWTChecker()
 	a.gmodel = model.NewGatewayModel()
 	a.gateWayrepo = repository.NewGateWayRepository()
-	a.ratelimiter = ratelimiter.NewRateLimiter(*a.gateWayrepo.RateLimiterModel)
+	a.ratelimiter = ratelimiter.NewRateLimiter(*a.gateWayrepo.RateLimiterModel, a.gateWayrepo.Redisrepo)
 
 	// Khởi tạo router
 	router := mux.NewRouter()
