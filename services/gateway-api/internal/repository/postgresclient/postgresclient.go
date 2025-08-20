@@ -37,3 +37,27 @@ func (pc *PostgresClient) Close() {
 		pc.DB.Close()
 	}
 }
+
+func (pc *PostgresClient) SearchTable(tb string) bool {
+	if pc.DB == nil {
+		log.Println("❌ Database connection is not initialized")
+		return false
+	}
+
+	var exists bool
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM information_schema.tables 
+			WHERE table_schema = 'public' 
+			AND table_name = $1
+		)
+	`
+	err := pc.DB.QueryRow(query, tb).Scan(&exists) // tb (kiểu string) sẽ được gán vào chỗ $1 trong câu SQL.
+	if err != nil {
+		log.Printf("❌ Error checking table existence: %v", err)
+		return false
+	}
+
+	return exists
+}

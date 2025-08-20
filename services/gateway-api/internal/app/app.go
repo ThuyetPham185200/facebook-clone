@@ -8,6 +8,7 @@ import (
 	"gatewayapi/internal/http-server/server"
 	"gatewayapi/internal/middleware/auth/pkg/jwt_checker"
 	"gatewayapi/internal/middleware/ratelimiter"
+	"gatewayapi/internal/repository"
 	"gatewayapi/model"
 	"gatewayapi/utils"
 	"io"
@@ -28,6 +29,7 @@ type App struct {
 	httpserver  *server.HttpServer
 	jwtchecker  *jwt_checker.JWTChecker
 	ratelimiter *ratelimiter.RateLimiter
+	gateWayrepo *repository.GateWayRepository
 	gmodel      *model.GatewayModel
 }
 
@@ -56,8 +58,9 @@ func (a *App) Stop() {
 
 func (a *App) init() {
 	a.jwtchecker = jwt_checker.NewJWTChecker()
-	a.ratelimiter = ratelimiter.NewRateLimiter()
 	a.gmodel = model.NewGatewayModel()
+	a.gateWayrepo = repository.NewGateWayRepository()
+	a.ratelimiter = ratelimiter.NewRateLimiter(*a.gateWayrepo.RateLimiterModel)
 
 	// Khởi tạo router
 	router := mux.NewRouter()

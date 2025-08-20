@@ -39,6 +39,18 @@ func (t *TokenBucketAlgorithm) Allow(key string, limit int) bool {
 		t.buckets[key] = bucket
 	}
 
+	// // In toàn bộ giá trị trong bucket
+	// fmt.Printf("🚀 New Bucket Created:\n"+
+	// 	"  Capacity: %d\n"+
+	// 	"  Tokens: %d\n"+
+	// 	"  RefillRate: %d\n"+
+	// 	"  LastRefill: %v\n",
+	// 	bucket.Capacity,
+	// 	bucket.Tokens,
+	// 	bucket.RefillRate,
+	// 	bucket.LastRefill,
+	// )
+
 	now := time.Now()
 	elapsed := now.Sub(bucket.LastRefill).Seconds()
 	bucket.Tokens += int(elapsed * float64(bucket.RefillRate))

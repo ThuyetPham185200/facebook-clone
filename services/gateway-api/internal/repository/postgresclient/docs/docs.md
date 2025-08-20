@@ -19,10 +19,16 @@ sudo systemctl start postgresql
 ## cmd to create db 
 # 1️⃣ Kết nối vào PostgreSQL
 sudo -u postgres psql
+
 # 2️⃣ Tạo user
 CREATE USER taopq WITH PASSWORD '123456a@';
+
 # 3️⃣ Tạo database
 CREATE DATABASE mydb OWNER taopq;
+
+# Login to mydb if it created
+psql -h localhost -U taopq -d mydb 
+
 # 4️⃣ Cấp quyền cho user
 GRANT ALL PRIVILEGES ON DATABASE mydb TO taopq;
 

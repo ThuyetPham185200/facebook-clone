@@ -8,6 +8,7 @@ type Endpoint struct {
 	Method      string
 	Path        string
 	RequireAuth bool
+	RateLimit   int
 }
 
 // ===== Struct cho Group Endpoint / Internal Service =====
@@ -29,24 +30,28 @@ var AuthService = ServiceGroup{
 			Method:      http.MethodPost,
 			Path:        "/register",
 			RequireAuth: false,
+			RateLimit:   1,
 		},
 		{
 			Name:        "Login",
 			Method:      http.MethodPost,
 			Path:        "/login",
 			RequireAuth: false,
+			RateLimit:   1,
 		},
 		{
 			Name:        "ChangePassword",
 			Method:      http.MethodPut,
 			Path:        "/me/password",
 			RequireAuth: true,
+			RateLimit:   1,
 		},
 		{
 			Name:        "DeleteAccount",
 			Method:      http.MethodDelete,
 			Path:        "/me",
 			RequireAuth: true,
+			RateLimit:   1,
 		},
 	},
 }
@@ -62,18 +67,21 @@ var UserService = ServiceGroup{
 			Method:      http.MethodGet,
 			Path:        "/users/{user_id}",
 			RequireAuth: true, // tùy chọn
+			RateLimit:   5,
 		},
 		{
 			Name:        "UpdateOwnProfile",
 			Method:      http.MethodPatch,
 			Path:        "/me",
 			RequireAuth: true,
+			RateLimit:   1,
 		},
 		{
 			Name:        "SearchUsers",
 			Method:      http.MethodGet,
 			Path:        "/users",
 			RequireAuth: true, // tùy hệ thống
+			RateLimit:   3,
 		},
 	},
 }
@@ -89,36 +97,42 @@ var PostsService = ServiceGroup{
 			Method:      http.MethodGet,
 			Path:        "/posts/{post_id}",
 			RequireAuth: true, // tùy chọn
+			RateLimit:   5,
 		},
 		{
 			Name:        "GetUserPosts",
 			Method:      http.MethodGet,
 			Path:        "/users/{user_id}/posts",
 			RequireAuth: true,
+			RateLimit:   5,
 		},
 		{
 			Name:        "GetOwnPosts",
 			Method:      http.MethodGet,
 			Path:        "/me/posts",
 			RequireAuth: true,
+			RateLimit:   5,
 		},
 		{
 			Name:        "CreatePost",
 			Method:      http.MethodPost,
 			Path:        "/posts",
 			RequireAuth: true,
+			RateLimit:   1,
 		},
 		{
 			Name:        "UpdatePost",
 			Method:      http.MethodPatch,
 			Path:        "/posts/{post_id}",
 			RequireAuth: true,
+			RateLimit:   1,
 		},
 		{
 			Name:        "DeletePost",
 			Method:      http.MethodDelete,
 			Path:        "/posts/{post_id}",
 			RequireAuth: true,
+			RateLimit:   1,
 		},
 	},
 }
@@ -134,18 +148,21 @@ var ReactionsService = ServiceGroup{
 			Method:      http.MethodGet,
 			Path:        "/posts/{post_id}/reactions",
 			RequireAuth: true, // tùy chọn
+			RateLimit:   5,
 		},
 		{
 			Name:        "ReactToPost",
 			Method:      http.MethodPost,
 			Path:        "/posts/{post_id}/reactions",
 			RequireAuth: true,
+			RateLimit:   5,
 		},
 		{
 			Name:        "RemoveReaction",
 			Method:      http.MethodDelete,
 			Path:        "/posts/{post_id}/reactions",
 			RequireAuth: true,
+			RateLimit:   1,
 		},
 	},
 }

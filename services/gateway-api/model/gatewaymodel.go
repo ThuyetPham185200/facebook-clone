@@ -27,6 +27,7 @@ type GatewayResult struct {
 type GatewayModel struct {
 	RequestQueue  chan RawRequestData
 	TopicAuthMap  map[string]bool
+	RateLimitMap  map[string]int
 	ServiceGroups []apis.ServiceGroup
 }
 
@@ -40,7 +41,9 @@ func NewGatewayModel() *GatewayModel {
 		apis.ReactionsService,
 	}
 	gateway.TopicAuthMap = make(map[string]bool)
+	gateway.RateLimitMap = make(map[string]int)
 	gateway.initTopicAuthMap()
+	gateway.initRateLimitMap()
 	return gateway
 }
 
@@ -49,6 +52,15 @@ func (g *GatewayModel) initTopicAuthMap() {
 		for _, ep := range sg.Endpoints {
 			topic := sg.Name + "/" + ep.Name
 			g.TopicAuthMap[topic] = ep.RequireAuth
+		}
+	}
+}
+
+func (g *GatewayModel) initRateLimitMap() {
+	for _, sg := range g.ServiceGroups {
+		for _, ep := range sg.Endpoints {
+			topic := sg.Name + "/" + ep.Name
+			g.RateLimitMap[topic] = ep.RateLimit
 		}
 	}
 }

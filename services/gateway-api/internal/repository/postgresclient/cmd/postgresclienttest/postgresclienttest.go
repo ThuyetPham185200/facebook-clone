@@ -1,39 +1,74 @@
 package main
 
 import (
+	"fmt"
 	dbclient "gatewayapi/internal/repository/postgresclient"
 	"gatewayapi/internal/repository/postgresclient/tables"
+	gmodel "gatewayapi/model"
+	"log"
 )
+
+type RateLimitAPIModel struct {
+	Gmodel gmodel.GatewayModel
+}
+
+func NewRateLimitAPIModel() *RateLimitAPIModel {
+	r := &RateLimitAPIModel{}
+	r.Gmodel = *gmodel.NewGatewayModel()
+	return r
+}
+
+func (r *RateLimitAPIModel) RateLimitAdapt() []map[string]interface{} {
+	var rules []map[string]interface{}
+	for action, limit := range r.Gmodel.RateLimitMap {
+		rules = append(rules, map[string]interface{}{
+			"action":           action,
+			"limit_per_second": limit,
+		})
+	}
+	return rules
+}
 
 func main() {
 	client := dbclient.NewPostgresClient(
-		"localhost",
-		"5432",
-		"taopq",
-		"123456a@",
-		"mydb",
+		"localhost", // IP
+		"5432",      // Port
+		"taopq",     // user_name
+		"123456a@",  // password
+		"mydb",      // db
 	)
 	defer client.Close()
 
-	// Tạo bảng rule
+	r := NewRateLimitAPIModel()
+
+	// Tạo bảng rules
 	rulesTable := tables.NewRateLimiterRulesTable(client)
-	rulesTable.CreateTable()
 
-	// Insert các rule
-	rules := []map[string]interface{}{
-		{"action": "max_requests", "limit_per_second": 10000, "description": "Maximum 10,000 requests per second"},
-		{"action": "requests_per_ip", "limit_per_second": 10, "description": "10 requests per second per IP"},
-		{"action": "post", "limit_per_second": 1, "description": "1 post per second per user"},
-		{"action": "like", "limit_per_second": 5, "description": "5 likes per second"},
-		{"action": "feed", "limit_per_second": 5, "description": "Get max 5 feeds per second per person"},
-		{"action": "comment", "limit_per_second": 5, "description": "Max 5 comments per second"},
-		{"action": "follow_unfollow", "limit_per_second": 5, "description": "Follow/unfollow max 5 times per second"},
-	}
-
-	for _, rule := range rules {
-		rulesTable.Insert(rule)
+	if !client.SearchTable(rulesTable.TableName) {
+		fmt.Printf("%s NOT EXIST - CREATION PROCESS STARTING\n", rulesTable.TableName)
+		rulesTable.CreateTable()
+		rules := r.RateLimitAdapt()
+		rules = append(rules, map[string]interface{}{
+			"action":           "max_requests",
+			"limit_per_second": 10000,
+		})
+		rules = append(rules, map[string]interface{}{
+			"action":           "requests_per_ip",
+			"limit_per_second": 10,
+		})
+		for _, rule := range rules {
+			rulesTable.Insert(rule)
+		}
+	} else {
+		fmt.Printf("%s EXISTED\n", rulesTable.TableName)
 	}
 
 	// Lấy tất cả rules
-	rulesTable.GetAll()
+	rows, err := rulesTable.GetAll()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, row := range rows {
+		fmt.Println(row)
+	}
 }
