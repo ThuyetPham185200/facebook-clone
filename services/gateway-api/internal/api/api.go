@@ -8,7 +8,7 @@ type Endpoint struct {
 	Method      string
 	Path        string
 	RequireAuth bool
-	RateLimit   int
+	RateLimit   int // per second
 }
 
 // ===== Struct cho Group Endpoint / Internal Service =====

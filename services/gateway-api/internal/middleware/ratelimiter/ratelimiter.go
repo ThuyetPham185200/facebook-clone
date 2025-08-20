@@ -4,6 +4,7 @@ import (
 	"gatewayapi/internal/middleware/ratelimiter/algorithm"
 	"gatewayapi/internal/middleware/ratelimiter/factory"
 	"gatewayapi/internal/middleware/ratelimiter/limiter"
+	"gatewayapi/internal/repository/redisclient"
 	"gatewayapi/model"
 )
 
@@ -15,10 +16,10 @@ type RateLimiter struct {
 	MaxReqLimiter  *limiter.MaxRequestLimiter
 }
 
-func NewRateLimiter(model model.RateLimterModel) *RateLimiter {
+func NewRateLimiter(model model.RateLimterModel, redisClient *redisclient.RedisClient) *RateLimiter {
 	limits := model.FeatureLimits
 
-	algo := algorithm.NewTokenBucketAlgorithm()
+	algo := algorithm.NewTokenBucketAlgorithm(redisClient)
 
 	return &RateLimiter{
 		Limits:         limits,

@@ -32,3 +32,6 @@ psql -h localhost -U taopq -d mydb
 # 4️⃣ Cấp quyền cho user
 GRANT ALL PRIVILEGES ON DATABASE mydb TO taopq;
 
+## change owner db
+ALTER TABLE public.rate_limiter_rules OWNER TO taopq;
+ALTER TABLE public.users OWNER TO taopq;
