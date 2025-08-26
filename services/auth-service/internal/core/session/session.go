@@ -1,9 +1,9 @@
-package auth
+package session
 
 import (
+	"authservice/internal/infra/store"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -18,7 +18,7 @@ type SessionManager interface {
 }
 
 // ---- JWT Config ----
-type jwtConfig struct {
+type JwtConfig struct {
 	AccessSecret  []byte
 	RefreshSecret []byte
 	AccessTTL     time.Duration
@@ -27,12 +27,12 @@ type jwtConfig struct {
 
 // ---- Implementation ----
 type sessionManager struct {
-	cfg   jwtConfig
-	store RefreshTokenStore // backend to persist refresh tokens
+	cfg   *JwtConfig
+	store store.RefreshTokenStore // backend to persist refresh tokens
 }
 
 // ---- Constructor ----
-func NewSessionManager(cfg jwtConfig, store RefreshTokenStore) SessionManager {
+func NewSessionManager(cfg *JwtConfig, store store.RefreshTokenStore) SessionManager {
 	return &sessionManager{cfg: cfg, store: store}
 }
 
@@ -51,7 +51,7 @@ func (sm *sessionManager) CreateSession(userID int64) (string, string, error) {
 	}
 
 	// persist refresh token
-	if err := sm.store.Save(userID, refreshToken, sm.cfg.RefreshTTL); err != nil {
+	if err := sm.store.Save(string(userID), refreshToken, sm.cfg.RefreshTTL); err != nil {
 		return "", "", err
 	}
 
@@ -61,13 +61,13 @@ func (sm *sessionManager) CreateSession(userID int64) (string, string, error) {
 // ---- RefreshToken ----
 func (sm *sessionManager) RefreshToken(refreshToken string) (string, string, error) {
 	// validate refresh token
-	claims, userID, err := sm.parseToken(refreshToken, sm.cfg.RefreshSecret)
+	_, userID, err := sm.parseToken(refreshToken, sm.cfg.RefreshSecret)
 	if err != nil {
 		return "", "", errors.New("invalid refresh token")
 	}
 
 	// check if token exists in store
-	ok, err := sm.store.Exists(userID, refreshToken)
+	ok, err := sm.store.Exists(string(userID), refreshToken)
 	if err != nil || !ok {
 		return "", "", errors.New("refresh token revoked or not found")
 	}
@@ -79,7 +79,7 @@ func (sm *sessionManager) RefreshToken(refreshToken string) (string, string, err
 	}
 
 	// delete old refresh token
-	if err := sm.store.Delete(userID, refreshToken); err != nil {
+	if err := sm.store.Delete(string(userID), refreshToken); err != nil {
 		return "", "", err
 	}
 
@@ -88,12 +88,12 @@ func (sm *sessionManager) RefreshToken(refreshToken string) (string, string, err
 
 // ---- Logout single session ----
 func (sm *sessionManager) Logout(userID int64, refreshToken string) error {
-	return sm.store.Delete(userID, refreshToken)
+	return sm.store.Delete(string(userID), refreshToken)
 }
 
 // ---- Logout all sessions ----
 func (sm *sessionManager) LogoutAll(userID int64) error {
-	return sm.store.DeleteAll(userID)
+	return sm.store.DeleteAll(string(userID))
 }
 
 // ---- Helpers ----
@@ -131,68 +131,3 @@ func (sm *sessionManager) parseToken(tokenStr string, secret []byte) (jwt.MapCla
 }
 
 // ---- Simple In-Memory RefreshTokenStore (for demo/testing)
-// In production: replace with Redis/Postgres implementation
-type RefreshTokenStore interface {
-	Save(userID int64, refreshToken string, ttl time.Duration) error
-	Exists(userID int64, refreshToken string) (bool, error)
-	Delete(userID int64, refreshToken string) error
-	DeleteAll(userID int64) error
-}
-
-type inMemoryTokenStore struct {
-	mu     sync.Mutex
-	tokens map[int64]map[string]time.Time
-}
-
-func NewInMemoryTokenStore() RefreshTokenStore {
-	return &inMemoryTokenStore{
-		tokens: make(map[int64]map[string]time.Time),
-	}
-}
-
-func (s *inMemoryTokenStore) Save(userID int64, refreshToken string, ttl time.Duration) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.tokens[userID] == nil {
-		s.tokens[userID] = make(map[string]time.Time)
-	}
-	s.tokens[userID][refreshToken] = time.Now().Add(ttl)
-	return nil
-}
-
-func (s *inMemoryTokenStore) Exists(userID int64, refreshToken string) (bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, ok := s.tokens[userID]; !ok {
-		return false, nil
-	}
-	exp, ok := s.tokens[userID][refreshToken]
-	if !ok {
-		return false, nil
-	}
-	if time.Now().After(exp) {
-		delete(s.tokens[userID], refreshToken)
-		return false, nil
-	}
-	return true, nil
-}
-
-func (s *inMemoryTokenStore) Delete(userID int64, refreshToken string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, ok := s.tokens[userID]; ok {
-		delete(s.tokens[userID], refreshToken)
-	}
-	return nil
-}
-
-func (s *inMemoryTokenStore) DeleteAll(userID int64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	delete(s.tokens, userID)
-	return nil
-}

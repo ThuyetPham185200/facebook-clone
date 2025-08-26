@@ -35,4 +35,22 @@ func main() {
 	for _, row := range rows {
 		fmt.Println(row)
 	}
+
+	sessionsTable := tables.NewSessionsTable(client)
+
+	if !client.SearchTable(sessionsTable.TableName) {
+		fmt.Printf("%s NOT EXIST - CREATION PROCESS STARTING\n", sessionsTable.TableName)
+		sessionsTable.CreateTable()
+	} else {
+		fmt.Printf("%s EXISTED\n", sessionsTable.TableName)
+	}
+
+	// Lấy tất cả rules
+	rows, err = sessionsTable.GetAll()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, row := range rows {
+		fmt.Println(row)
+	}
 }

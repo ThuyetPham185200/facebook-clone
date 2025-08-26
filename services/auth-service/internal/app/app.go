@@ -1,3 +1,67 @@
 package app
 
-//
+import (
+	"authservice/internal/api"
+	auth "authservice/internal/core/authentication"
+	"authservice/internal/core/http-server/server"
+	"authservice/internal/core/session"
+	"authservice/internal/infra/store"
+	"log"
+	"time"
+
+	"github.com/gorilla/mux"
+)
+
+type App struct {
+	httpserver     *server.HttpServer
+	authapi        *api.AuthAPI
+	authentication auth.AuthenticationManager
+	session        session.SessionManager
+}
+
+func NewAuthServiceApp() *App {
+	var app = &App{}
+	app.init()
+	return app
+}
+
+func (a *App) Start() {
+	if err := a.httpserver.Start(); err != nil {
+		log.Fatalf("❌ Failed to start: %v", err)
+	}
+}
+
+func (a *App) Stop() {
+	if err := a.httpserver.Stop(); err != nil {
+		log.Printf("⚠️ Error stopping server: %v", err)
+	}
+	log.Println("✅ Server stopped gracefully")
+}
+
+// ///////////////////////////////////////////////////////////////////////////////////////
+func (a *App) init() {
+	router := mux.NewRouter()
+	cfg := &session.JwtConfig{
+		AccessSecret:  []byte("my-access-secret"),
+		RefreshSecret: []byte("my-refresh-secret"),
+		AccessTTL:     15 * time.Minute,
+		RefreshTTL:    7 * 24 * time.Hour,
+	}
+
+	// có thể dùng in-memory store hoặc postgres store
+	a.session = session.NewSessionManager(cfg, store.NewInMemoryTokenStore())
+	a.authentication = auth.NewAuthenticationManager(
+		store.NewCredentialsStore(
+			"localhost", // IP
+			"5432",      // Port
+			"taopq",     // user_name
+			"123456a@",  // password
+			"mydb",      // db
+		),
+		auth.NewUserService(),
+		a.session)
+	a.authapi = api.NewAuthAPI(a.authentication)
+	a.authapi.RegisterRoutes(router)
+	// 3. Khởi tạo http server
+	a.httpserver = server.NewHttpServer("localhost:8080", router)
+}
