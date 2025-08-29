@@ -14,7 +14,7 @@ func NewCredentialsTable(client *dbclient.PostgresClient) *CredentialsTable {
 			Client:    client,
 			TableName: "credentials",
 			Columns: map[string]string{
-				"id":            "UUID PRIMARY KEY DEFAULT gen_random_uuid()",
+				"id":            "UUID PRIMARY KEY", // bỏ DEFAULT gen_random_uuid()
 				"password_hash": "VARCHAR(255) NOT NULL",
 				"mfa_secret":    "BYTEA", // VARBINARY trong Postgres là BYTEA
 				"status":        "VARCHAR(16) NOT NULL DEFAULT 'active' CHECK (status IN ('active','locked','disabled'))",

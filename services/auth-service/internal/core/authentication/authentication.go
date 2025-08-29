@@ -2,29 +2,13 @@ package auth
 
 import (
 	auth "authservice/internal/core/session"
+	"authservice/internal/core/userserviceclient"
 	"authservice/internal/infra/store"
-	"encoding/binary"
 	"errors"
 	"strconv"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
-
-type UserService struct {
-}
-
-func NewUserService() *UserService {
-	return &UserService{}
-}
-func (u *UserService) CreateUserProfile(username, email string) (int64, error) {
-	newUUID := uuid.New()
-	// Lấy 8 byte đầu của UUID để convert sang int64
-	userID := int64(binary.BigEndian.Uint64(newUUID[:8]))
-
-	// TODO: insert vào bảng users ở DB, có cột id kiểu BIGINT
-	return userID, nil
-}
 
 // ---- Interface ----
 type AuthenticationManager interface {
@@ -40,11 +24,11 @@ type AuthenticationManager interface {
 // ---- Implementation ----
 type authenticationManager struct {
 	credStore      *store.CredentialsStore // abstract interface to Credentials DB
-	userService    *UserService
+	userService    *userserviceclient.UserService
 	sessionManager auth.SessionManager
 }
 
-func NewAuthenticationManager(cs *store.CredentialsStore, us *UserService, sm auth.SessionManager) AuthenticationManager {
+func NewAuthenticationManager(cs *store.CredentialsStore, us *userserviceclient.UserService, sm auth.SessionManager) AuthenticationManager {
 	return &authenticationManager{
 		credStore:      cs,
 		userService:    us,

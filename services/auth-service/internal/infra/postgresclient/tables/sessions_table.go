@@ -14,7 +14,7 @@ func NewSessionsTable(client *dbclient.PostgresClient) *SessionsTable {
 			Client:    client,
 			TableName: "sessions",
 			Columns: map[string]string{
-				"id":            "UUID PRIMARY KEY DEFAULT gen_random_uuid()",
+				"id":            "UUID PRIMARY KEY",
 				"user_id":       "UUID NOT NULL REFERENCES credentials(id) ON DELETE CASCADE",
 				"access_token":  "TEXT UNIQUE NOT NULL",
 				"refresh_token": "TEXT UNIQUE NOT NULL",
