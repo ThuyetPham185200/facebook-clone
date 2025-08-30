@@ -11,10 +11,10 @@ import (
 
 // ---- Interface ----
 type SessionManager interface {
-	CreateSession(userID int64) (accessToken, refreshToken string, err error)
+	CreateSession(userID string) (accessToken, refreshToken string, err error)
 	RefreshToken(refreshToken string) (newAccess, newRefresh string, err error)
-	Logout(userID int64, refreshToken string) error
-	LogoutAll(userID int64) error
+	Logout(userID string, refreshToken string) error
+	LogoutAll(userID string) error
 }
 
 // ---- JWT Config ----
@@ -37,7 +37,7 @@ func NewSessionManager(cfg *JwtConfig, store store.RefreshTokenStore) SessionMan
 }
 
 // ---- CreateSession ----
-func (sm *sessionManager) CreateSession(userID int64) (string, string, error) {
+func (sm *sessionManager) CreateSession(userID string) (string, string, error) {
 	// create access token
 	accessToken, err := sm.generateToken(userID, sm.cfg.AccessSecret, sm.cfg.AccessTTL)
 	if err != nil {
@@ -51,7 +51,7 @@ func (sm *sessionManager) CreateSession(userID int64) (string, string, error) {
 	}
 
 	// persist refresh token
-	if err := sm.store.Save(string(userID), refreshToken, sm.cfg.RefreshTTL); err != nil {
+	if err := sm.store.Save(userID, refreshToken, sm.cfg.RefreshTTL); err != nil {
 		return "", "", err
 	}
 
@@ -67,7 +67,7 @@ func (sm *sessionManager) RefreshToken(refreshToken string) (string, string, err
 	}
 
 	// check if token exists in store
-	ok, err := sm.store.Exists(string(userID), refreshToken)
+	ok, err := sm.store.Exists(userID, refreshToken)
 	if err != nil || !ok {
 		return "", "", errors.New("refresh token revoked or not found")
 	}
@@ -79,7 +79,7 @@ func (sm *sessionManager) RefreshToken(refreshToken string) (string, string, err
 	}
 
 	// delete old refresh token
-	if err := sm.store.Delete(string(userID), refreshToken); err != nil {
+	if err := sm.store.Delete(userID, refreshToken); err != nil {
 		return "", "", err
 	}
 
@@ -87,17 +87,17 @@ func (sm *sessionManager) RefreshToken(refreshToken string) (string, string, err
 }
 
 // ---- Logout single session ----
-func (sm *sessionManager) Logout(userID int64, refreshToken string) error {
-	return sm.store.Delete(string(userID), refreshToken)
+func (sm *sessionManager) Logout(userID string, refreshToken string) error {
+	return sm.store.Delete(userID, refreshToken)
 }
 
 // ---- Logout all sessions ----
-func (sm *sessionManager) LogoutAll(userID int64) error {
-	return sm.store.DeleteAll(string(userID))
+func (sm *sessionManager) LogoutAll(userID string) error {
+	return sm.store.DeleteAll(userID)
 }
 
 // ---- Helpers ----
-func (sm *sessionManager) generateToken(userID int64, secret []byte, ttl time.Duration) (string, error) {
+func (sm *sessionManager) generateToken(userID string, secret []byte, ttl time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(ttl).Unix(),
@@ -106,7 +106,7 @@ func (sm *sessionManager) generateToken(userID int64, secret []byte, ttl time.Du
 	return token.SignedString(secret)
 }
 
-func (sm *sessionManager) parseToken(tokenStr string, secret []byte) (jwt.MapClaims, int64, error) {
+func (sm *sessionManager) parseToken(tokenStr string, secret []byte) (jwt.MapClaims, string, error) {
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
@@ -114,20 +114,18 @@ func (sm *sessionManager) parseToken(tokenStr string, secret []byte) (jwt.MapCla
 		return secret, nil
 	})
 	if err != nil || !token.Valid {
-		return nil, 0, errors.New("invalid token")
+		return nil, "", errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, 0, errors.New("invalid claims")
+		return nil, "", errors.New("invalid claims")
 	}
 
-	uid, ok := claims["user_id"].(float64)
+	uid, ok := claims["user_id"].(string)
 	if !ok {
-		return nil, 0, errors.New("invalid user_id claim")
+		return nil, "", errors.New("invalid user_id claim")
 	}
 
-	return claims, int64(uid), nil
+	return claims, uid, nil
 }
-
-// ---- Simple In-Memory RefreshTokenStore (for demo/testing)

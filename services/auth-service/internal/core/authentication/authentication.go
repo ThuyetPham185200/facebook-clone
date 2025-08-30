@@ -5,14 +5,13 @@ import (
 	"authservice/internal/core/userserviceclient"
 	"authservice/internal/infra/store"
 	"errors"
-	"strconv"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 // ---- Interface ----
 type AuthenticationManager interface {
-	Register(username, email, password string) (userID int64, accessToken, refreshToken string, err error)
+	Register(username, email, password string) (userID string, accessToken, refreshToken string, err error)
 	// Login(login, password string) (accessToken, refreshToken string, err error)
 	// ChangePassword(userID int64, oldPassword, newPassword string) error
 	// DeleteAccount(userID int64) error
@@ -37,40 +36,40 @@ func NewAuthenticationManager(cs *store.CredentialsStore, us *userserviceclient.
 }
 
 // ---- Register ----
-func (am *authenticationManager) Register(username, email, password string) (int64, string, string, error) {
+func (am *authenticationManager) Register(username, email, password string) (string, string, string, error) {
 	// check duplicate username/email
 	exists, err := am.credStore.Exists(username, email)
 
 	if err != nil {
-		return 0, "", "", err
+		return "", "", "", err
 	}
 	if exists {
-		return 0, "", "", errors.New("username or email already exists")
+		return "", "", "", errors.New("username or email already exists")
 	}
 
 	// hash password
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return 0, "", "", err
+		return "", "", "", err
 	}
 
 	// create user profile in UserService
 	userID, err := am.userService.CreateUserProfile(username, email)
 
 	if err != nil {
-		return 0, "", "", err
+		return "", "", "", err
 	}
 
 	// save credentials in Credentials DB
-	err = am.credStore.Save(strconv.FormatInt(userID, 10), username, email, string(hashed))
+	err = am.credStore.Save(userID, username, email, string(hashed))
 	if err != nil {
-		return 0, "", "", err
+		return "", "", "", err
 	}
 
 	//create session
-	access, refresh, err := am.sessionManager.CreateSession(int64(userID))
+	access, refresh, err := am.sessionManager.CreateSession(userID)
 	if err != nil {
-		return 0, "", "", err
+		return "", "", "", err
 	}
 
 	return userID, access, refresh, nil

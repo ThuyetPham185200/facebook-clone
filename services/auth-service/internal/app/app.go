@@ -5,6 +5,7 @@ import (
 	auth "authservice/internal/core/authentication"
 	"authservice/internal/core/http-server/server"
 	"authservice/internal/core/session"
+	"authservice/internal/core/userserviceclient"
 	"authservice/internal/infra/store"
 	"log"
 	"time"
@@ -58,10 +59,10 @@ func (a *App) init() {
 			"123456a@",  // password
 			"mydb",      // db
 		),
-		auth.NewUserService(),
+		userserviceclient.NewUserService(" http://localhost:9001/"),
 		a.session)
 	a.authapi = api.NewAuthAPI(a.authentication)
 	a.authapi.RegisterRoutes(router)
 	// 3. Khởi tạo http server
-	a.httpserver = server.NewHttpServer("localhost:8080", router)
+	a.httpserver = server.NewHttpServer("localhost:9000", router)
 }
