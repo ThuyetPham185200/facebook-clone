@@ -25,7 +25,7 @@ func NewUserAPI(us UserStore) *UserAPI {
 
 func (api *UserAPI) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/me", api.handleGetOwnProfile).Methods("GET")
-	r.HandleFunc("/users", api.handleGetOwnProfile).Methods("POST")
+	r.HandleFunc("/users", api.handleCreateUserProfile).Methods("POST")
 
 }
 

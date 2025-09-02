@@ -44,7 +44,7 @@ func (am *authenticationManager) Register(username, email, password string) (str
 		return "", "", "", err
 	}
 	if exists {
-		return "", "", "", errors.New("username or email already exists")
+		return "", "", "", errors.New("[authenticationManager] username or email already exists")
 	}
 
 	// hash password

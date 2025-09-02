@@ -20,13 +20,13 @@ func NewCredentialsStore(host, port, user, password, dbname string) *Credentials
 // Exists kiểm tra username hoặc email có tồn tại không
 func (c *CredentialsStore) Exists(username, email string) (bool, error) {
 	if c.DBclient.DB == nil {
-		return false, fmt.Errorf("database client not initialized")
+		return false, fmt.Errorf("[CredentialsStore] database client not initialized")
 	}
 
 	query := `
 		SELECT EXISTS (
 			SELECT 1 FROM credentials
-			WHERE name = $1 OR email = $2
+			WHERE username = $1 OR email = $2
 		)
 	`
 
@@ -36,7 +36,7 @@ func (c *CredentialsStore) Exists(username, email string) (bool, error) {
 		if err == sql.ErrNoRows {
 			return false, nil
 		}
-		return false, fmt.Errorf("query failed: %w", err)
+		return false, fmt.Errorf("[CredentialsStore] query failed: %w", err)
 	}
 
 	return exists, nil
@@ -45,12 +45,12 @@ func (c *CredentialsStore) Exists(username, email string) (bool, error) {
 // Save lưu thông tin user mới vào bảng credentials
 func (c *CredentialsStore) Save(userID, username, email, hashed string) error {
 	if c.DBclient.DB == nil {
-		return fmt.Errorf("database client not initialized")
+		return fmt.Errorf("[CredentialsStore] database client not initialized")
 	}
 
 	query := `
 		INSERT INTO credentials (
-			id, name, email, password_hash, status, created_at, updated_at
+			id, username, email, password_hash, created_at, updated_at
 		) VALUES ($1, $2, $3, $4, 'active', $5, $6)
 	`
 
@@ -60,7 +60,7 @@ func (c *CredentialsStore) Save(userID, username, email, hashed string) error {
 		userID, username, email, hashed, now, now,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to insert credential: %w", err)
+		return fmt.Errorf("[CredentialsStore] failed to insert credential: %w", err)
 	}
 
 	return nil

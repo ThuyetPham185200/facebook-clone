@@ -1,4 +1,4 @@
-module authservice
+		module authservice
 
 go 1.24.6
 
