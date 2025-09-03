@@ -2,6 +2,7 @@ package api
 
 import (
 	auth "authservice/internal/core/authentication"
+	"authservice/internal/model"
 	"authservice/utils"
 	"encoding/json"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 // // ---- Manager Interfaces ----
 type AuthenticationManager interface {
 	Register(username, email, password string) (userID int64, accessToken, refreshToken string, err error)
-	// Login(login, password string) (accessToken, refreshToken string, err error)
+	Login(login, password string) (accessToken, refreshToken string, err error)
 	// ChangePassword(userID int64, oldPwd, newPwd string) error
 	// DeleteAccount(userID int64) error
 }
@@ -46,7 +47,7 @@ func NewAuthAPI(am auth.AuthenticationManager) *AuthAPI {
 
 func (api *AuthAPI) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/register", api.handleRegister).Methods("POST")
-	// r.HandleFunc("/login", api.handleLogin).Methods("POST")
+	r.HandleFunc("/login", api.handleLogin).Methods("POST")
 	// r.HandleFunc("/me/password", api.handleChangePassword).Methods("PUT")
 	// r.HandleFunc("/me", api.handleDeleteAccount).Methods("DELETE")
 	// r.HandleFunc("/refresh", api.handleRefreshToken).Methods("POST")
@@ -56,40 +57,10 @@ func (api *AuthAPI) RegisterRoutes(r *mux.Router) {
 	// r.HandleFunc("/password/reset/confirm", api.handleConfirmPasswordReset).Methods("POST")
 }
 
-// ---- DTOs ----
-
-type registerRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-// type loginRequest struct {
-// 	Login    string `json:"login"`
-// 	Password string `json:"password"`
-// }
-// type changePasswordRequest struct {
-// 	OldPassword string `json:"old_password"`
-// 	NewPassword string `json:"new_password"`
-// }
-// type refreshRequest struct {
-// 	RefreshToken string `json:"refresh_token"`
-// }
-// type logoutRequest struct {
-// 	RefreshToken string `json:"refresh_token"`
-// }
-// type resetRequest struct {
-// 	Email string `json:"email"`
-// }
-// type resetConfirmRequest struct {
-// 	Token       string `json:"token"`
-// 	NewPassword string `json:"new_password"`
-// }
-
 // ---- Handlers ----
 
 func (api *AuthAPI) handleRegister(w http.ResponseWriter, r *http.Request) {
-	var req registerRequest
+	var req model.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "Invalid data")
 		return
@@ -106,22 +77,22 @@ func (api *AuthAPI) handleRegister(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// func (api *AuthAPI) handleLogin(w http.ResponseWriter, r *http.Request) {
-// 	var req loginRequest
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		utils.WriteJSON(w, http.StatusBadRequest, "Invalid data")
-// 		return
-// 	}
-// 	access, refresh, err := api.authManager.Login(req.Login, req.Password)
-// 	if err != nil {
-// 		utils.WriteJSON(w, http.StatusUnauthorized, "Invalid credentials")
-// 		return
-// 	}
-// 	utils.WriteJSON(w, http.StatusOK, map[string]string{
-// 		"access_token":  access,
-// 		"refresh_token": refresh,
-// 	})
-// }
+func (api *AuthAPI) handleLogin(w http.ResponseWriter, r *http.Request) {
+	var req model.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, "Invalid data")
+		return
+	}
+	access, refresh, err := api.authManager.Login(req.Login, req.Password)
+	if err != nil {
+		utils.WriteJSON(w, http.StatusUnauthorized, "Invalid credentials")
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"access_token":  access,
+		"refresh_token": refresh,
+	})
+}
 
 // func (api *AuthAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 // 	var req changePasswordRequest

@@ -12,7 +12,7 @@ import (
 // ---- Interface ----
 type AuthenticationManager interface {
 	Register(username, email, password string) (userID string, accessToken, refreshToken string, err error)
-	// Login(login, password string) (accessToken, refreshToken string, err error)
+	Login(login, password string) (accessToken, refreshToken string, err error)
 	// ChangePassword(userID int64, oldPassword, newPassword string) error
 	// DeleteAccount(userID int64) error
 	// Logout(userID int64, refreshToken string) error
@@ -86,23 +86,23 @@ func (am *authenticationManager) Register(username, email, password string) (str
 	return userID, access, refresh, nil
 }
 
-// // ---- Login ----
-// func (am *authenticationManager) Login(login, password string) (string, string, error) {
-// 	cred, err := am.credStore.GetByLogin(login)
-// 	if err != nil {
-// 		return "", "", errors.New("invalid credentials")
-// 	}
+// ---- Login ----
+func (am *authenticationManager) Login(login, password string) (string, string, error) {
+	cred, err := am.credStore.GetByLogin(login)
+	if err != nil {
+		return "", "", errors.New("invalid credentials")
+	}
 
-// 	if err := bcrypt.CompareHashAndPassword([]byte(cred.PasswordHash), []byte(password)); err != nil {
-// 		return "", "", errors.New("invalid credentials")
-// 	}
+	if err := bcrypt.CompareHashAndPassword([]byte(cred.PasswordHash), []byte(password)); err != nil {
+		return "", "", errors.New("invalid credentials")
+	}
 
-// 	access, refresh, err := am.sessionManager.CreateSession(cred.UserID)
-// 	if err != nil {
-// 		return "", "", err
-// 	}
-// 	return access, refresh, nil
-// }
+	access, refresh, err := am.sessionManager.CreateSession(cred.UserID)
+	if err != nil {
+		return "", "", err
+	}
+	return access, refresh, nil
+}
 
 // // ---- Change Password ----
 // func (am *authenticationManager) ChangePassword(userID int64, oldPassword, newPassword string) error {
