@@ -51,15 +51,22 @@ func (a *App) init() {
 
 	// có thể dùng in-memory store hoặc postgres store
 	a.session = session.NewSessionManager(cfg, store.NewInMemoryTokenStore())
+	dbcredentalscfg := &store.PostGresConfig{
+		Host:     "localhost", // IP
+		Port:     "5432",      // Port
+		User:     "taopq",     // user_name
+		Password: "123456a@",  // password
+		DBname:   "mydb",      // db
+	}
+	redisstorecfg := &store.RedisConfig{
+		Host:     "localhost",
+		Port:     "6379",
+		Password: "",
+		DBNumber: 1,
+	}
 	a.authentication = auth.NewAuthenticationManager(
-		store.NewCredentialsStore(
-			"localhost", // IP
-			"5432",      // Port
-			"taopq",     // user_name
-			"123456a@",  // password
-			"mydb",      // db
-		),
-		userserviceclient.NewUserService(" http://localhost:9001/"),
+		store.NewCredentialsStore(dbcredentalscfg, redisstorecfg),
+		userserviceclient.NewUserServiceClient("http://localhost:9001"),
 		a.session)
 	a.authapi = api.NewAuthAPI(a.authentication)
 	a.authapi.RegisterRoutes(router)

@@ -14,12 +14,17 @@ func NewCredentialsTable(client *dbclient.PostgresClient) *CredentialsTable {
 			Client:    client,
 			TableName: "credentials",
 			Columns: map[string]string{
-				"id":            "UUID PRIMARY KEY", // bỏ DEFAULT gen_random_uuid()
+				"id":            "UUID PRIMARY KEY",     // tự generate trong app
+				"user_id":       "UUID NOT NULL UNIQUE", // 1-1 với users
 				"password_hash": "VARCHAR(255) NOT NULL",
-				"mfa_secret":    "BYTEA", // VARBINARY trong Postgres là BYTEA
-				"status":        "VARCHAR(16) NOT NULL DEFAULT 'active' CHECK (status IN ('active','locked','disabled'))",
+				"mfa_secret":    "BYTEA",
+				"status":        "VARCHAR(16) NOT NULL DEFAULT 'active'",
 				"created_at":    "TIMESTAMP DEFAULT now()",
 				"updated_at":    "TIMESTAMP DEFAULT now()",
+			},
+			Constraints: []string{
+				"FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE",
+				"CHECK (status IN ('active','locked','disabled'))",
 			},
 		},
 	}

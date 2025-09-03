@@ -7,9 +7,10 @@ import (
 )
 
 type BaseTable struct {
-	Client    *PostgresClient
-	TableName string
-	Columns   map[string]string // column_name -> type (VD: "id": "SERIAL PRIMARY KEY")
+	Client      *PostgresClient
+	TableName   string
+	Columns     map[string]string // column_name -> type (VD: "id": "SERIAL PRIMARY KEY")
+	Constraints []string          // danh sách constraint ở mức table (FOREIGN KEY, UNIQUE, CHECK, ...)
 }
 
 // CreateTable tạo bảng dựa trên metadata
@@ -18,10 +19,17 @@ func (bt *BaseTable) CreateTable() {
 	for col, typ := range bt.Columns {
 		cols = append(cols, fmt.Sprintf("%s %s", col, typ))
 	}
+
+	allDefs := cols
+	if len(bt.Constraints) > 0 {
+		allDefs = append(allDefs, bt.Constraints...)
+	}
+
 	query := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (%s)`,
 		bt.TableName,
-		strings.Join(cols, ", "),
+		strings.Join(allDefs, ", "),
 	)
+
 	_, err := bt.Client.DB.Exec(query)
 	if err != nil {
 		log.Fatalf("❌ Lỗi tạo bảng %s: %v", bt.TableName, err)

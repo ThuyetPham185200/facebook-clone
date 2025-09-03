@@ -14,7 +14,7 @@ func NewUserTable(client *dbclient.PostgresClient) *UserTable {
 			Client:    client,
 			TableName: "users",
 			Columns: map[string]string{
-				"user_id":       "UUID PRIMARY KEY", // match credentials.id
+				"user_id":       "UUID PRIMARY KEY",
 				"username":      "VARCHAR(50) NOT NULL",
 				"email":         "VARCHAR(255) NOT NULL",
 				"bio":           "TEXT",
@@ -28,7 +28,6 @@ func NewUserTable(client *dbclient.PostgresClient) *UserTable {
 			Constraints: []string{
 				"UNIQUE (username)",
 				"UNIQUE (email)",
-				"FOREIGN KEY (user_id) REFERENCES credentials(id)",
 				"CHECK (gender IN ('male','female','other'))",
 			},
 		},

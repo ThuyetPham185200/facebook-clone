@@ -1,6 +1,8 @@
 package store
 
 import (
+	"database/sql"
+	"log"
 	dbclient "userservice/internal/infra/postgresclient"
 	"userservice/internal/model"
 
@@ -49,6 +51,9 @@ func (us *UserStore) GetOwnProfile(userID string) (*model.User, error) {
 func (us *UserStore) CreateUserProfile(username, email string) (*model.User, error) {
 	newUUID := uuid.New().String()
 
+	log.Printf("[UserStore] CreateUserProfile called. user_id=%s, username=%s, email=%s",
+		newUUID, username, email)
+
 	query := `
 		INSERT INTO users (user_id, username, email, created_at, updated_at)
 		VALUES ($1, $2, $3, now(), now())
@@ -70,8 +75,37 @@ func (us *UserStore) CreateUserProfile(username, email string) (*model.User, err
 		&user.UpdatedAt,
 	)
 	if err != nil {
+		log.Printf("[UserStore] failed to insert user (user_id=%s, username=%s, email=%s): %v",
+			newUUID, username, email, err)
 		return nil, err
 	}
 
+	log.Printf("[UserStore] user created successfully: %+v", user)
 	return &user, nil
+}
+
+func (us *UserStore) UsernameExists(username string) (bool, error) {
+	query := `SELECT 1 FROM users WHERE username = $1 LIMIT 1`
+	var exists int
+	err := us.DBclient.DB.QueryRow(query, username).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (us *UserStore) EmailExists(email string) (bool, error) {
+	query := `SELECT 1 FROM users WHERE email = $1 LIMIT 1`
+	var exists int
+	err := us.DBclient.DB.QueryRow(query, email).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }

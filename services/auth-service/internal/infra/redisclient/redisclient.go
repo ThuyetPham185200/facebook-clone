@@ -75,3 +75,27 @@ func (r *RedisClient) GetKey(key string) (string, error) {
 func (r *RedisClient) IncrKey(key string) (int64, error) {
 	return r.client.Incr(ctx, key).Result()
 }
+
+// KeyExists - kiểm tra key có tồn tại trong Redis
+func (r *RedisClient) KeyExists(key string) (bool, error) {
+	count, err := r.client.Exists(ctx, key).Result()
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// DeleteKey - xóa 1 key
+func (r *RedisClient) DeleteKey(key string) error {
+	return r.client.Del(ctx, key).Err()
+}
+
+// ExpireKey - đặt lại TTL cho 1 key
+func (r *RedisClient) ExpireKey(key string, ttl time.Duration) error {
+	return r.client.Expire(ctx, key, ttl).Err()
+}
+
+// GetTTL - lấy TTL còn lại của 1 key
+func (r *RedisClient) GetTTL(key string) (time.Duration, error) {
+	return r.client.TTL(ctx, key).Result()
+}

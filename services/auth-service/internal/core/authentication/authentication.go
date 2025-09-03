@@ -37,14 +37,25 @@ func NewAuthenticationManager(cs *store.CredentialsStore, us *userserviceclient.
 
 // ---- Register ----
 func (am *authenticationManager) Register(username, email, password string) (string, string, string, error) {
-	// check duplicate username/email
-	exists, err := am.credStore.Exists(username, email)
-
-	if err != nil {
-		return "", "", "", err
+	// cache check exists
+	exists, errc := am.credStore.ExistsUser(username, email)
+	if errc != nil {
+		return "", "", "", errc
 	}
 	if exists {
-		return "", "", "", errors.New("[authenticationManager] username or email already exists")
+		// check duplicate username/email in User Service
+		usernameexists, emailexists, err := am.userService.CheckUserExists(username, email)
+
+		if err != nil {
+			return "", "", "", err
+		}
+		if usernameexists {
+			return "", "", "", errors.New("[authenticationManager] username already exists")
+		}
+
+		if emailexists {
+			return "", "", "", errors.New("[authenticationManager] email already exists")
+		}
 	}
 
 	// hash password
