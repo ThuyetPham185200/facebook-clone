@@ -3,6 +3,7 @@ package store
 import (
 	dbclient "authservice/internal/infra/postgresclient"
 	"authservice/internal/infra/redisclient"
+	"authservice/internal/model"
 	"fmt"
 	"log"
 	"time"
@@ -118,4 +119,40 @@ func (c *CredentialsStore) Save(userID, username, email, hashed string) error {
 	}
 
 	return nil
+}
+
+func (c *CredentialsStore) GetUserIdByName(username string) (string, error) {
+	if c.RedisClient.GetClient() == nil {
+		return "", fmt.Errorf("[CredentialsStore] redis client not initialized")
+	}
+	userid, err := c.RedisClient.GetKey("user:" + username)
+	if err != nil {
+		fmt.Printf("[CredentialsStore] failed to get username from cache: %v\n", err)
+		return "", nil
+	}
+	return userid, nil
+}
+
+func (c *CredentialsStore) GetCredentialByUserID(userID string) (*model.Credential, error) {
+	query := `
+		SELECT id, user_id, password_hash, mfa_secret, status, created_at, updated_at
+		FROM credentials WHERE user_id = $1
+	`
+	row := c.DBclient.DB.QueryRow(query, userID)
+
+	var cre model.Credential
+	err := row.Scan(
+		&cre.ID,
+		&cre.UserID,
+		&cre.PasswordHash,
+		&cre.MFASecret,
+		&cre.Status,
+		&cre.CreatedAt,
+		&cre.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("[CredentialsStore] failed to scan credential: %w", err)
+	}
+
+	return &cre, nil
 }

@@ -1,6 +1,22 @@
 package model
 
+import (
+	"database/sql"
+	"time"
+)
+
 // ---- DTOs ----
+
+type Credential struct {
+	ID           string         `json:"id"`            // UUID, generated in app
+	UserID       string         `json:"user_id"`       // UUID, FK -> users(user_id)
+	PasswordHash string         `json:"password_hash"` // hashed password
+	MFASecret    sql.NullString `json:"mfa_secret"`    // nullable
+	Status       string         `json:"status"`        // active/locked/disabled
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+}
+
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`

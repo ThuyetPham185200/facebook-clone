@@ -37,25 +37,26 @@ func NewAuthenticationManager(cs *store.CredentialsStore, us *userserviceclient.
 
 // ---- Register ----
 func (am *authenticationManager) Register(username, email, password string) (string, string, string, error) {
-	// cache check exists
+	// check in credential store first (cache or DB)
 	exists, errc := am.credStore.ExistsUser(username, email)
 	if errc != nil {
 		return "", "", "", errc
 	}
+
 	if exists {
-		// check duplicate username/email in User Service
-		usernameexists, emailexists, err := am.userService.CheckUserExists(username, email)
+		return "", "", "", errors.New("[authenticationManager] user already exists in credentials")
+	}
 
-		if err != nil {
-			return "", "", "", err
-		}
-		if usernameexists {
-			return "", "", "", errors.New("[authenticationManager] username already exists")
-		}
-
-		if emailexists {
-			return "", "", "", errors.New("[authenticationManager] email already exists")
-		}
+	// check duplicate username/email in UserService
+	usernameexists, emailexists, err := am.userService.CheckUserExists(username, email)
+	if err != nil {
+		return "", "", "", err
+	}
+	if usernameexists {
+		return "", "", "", errors.New("[authenticationManager] username already exists")
+	}
+	if emailexists {
+		return "", "", "", errors.New("[authenticationManager] email already exists")
 	}
 
 	// hash password
@@ -66,7 +67,6 @@ func (am *authenticationManager) Register(username, email, password string) (str
 
 	// create user profile in UserService
 	userID, err := am.userService.CreateUserProfile(username, email)
-
 	if err != nil {
 		return "", "", "", err
 	}
@@ -77,7 +77,7 @@ func (am *authenticationManager) Register(username, email, password string) (str
 		return "", "", "", err
 	}
 
-	//create session
+	// create session
 	access, refresh, err := am.sessionManager.CreateSession(userID)
 	if err != nil {
 		return "", "", "", err
@@ -88,7 +88,19 @@ func (am *authenticationManager) Register(username, email, password string) (str
 
 // ---- Login ----
 func (am *authenticationManager) Login(login, password string) (string, string, error) {
-	cred, err := am.credStore.GetByLogin(login)
+	// step 1: get userid
+	var userid string
+	var err error
+	userid, err = am.credStore.GetUserIdByName(login)
+	if err != nil {
+		userid, err = am.userService.GetUserIdByName(login)
+		if err != nil {
+			return "", "", errors.New("invalid credentials")
+		}
+	}
+
+	// step 2: get hasedpassword
+	cred, err := am.credStore.GetCredentialByUserID(userid)
 	if err != nil {
 		return "", "", errors.New("invalid credentials")
 	}

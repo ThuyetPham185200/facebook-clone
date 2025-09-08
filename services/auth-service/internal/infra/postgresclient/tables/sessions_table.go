@@ -14,13 +14,20 @@ func NewSessionsTable(client *dbclient.PostgresClient) *SessionsTable {
 			Client:    client,
 			TableName: "sessions",
 			Columns: map[string]string{
-				"id":            "UUID PRIMARY KEY",
-				"user_id":       "UUID NOT NULL REFERENCES credentials(id) ON DELETE CASCADE",
-				"access_token":  "TEXT UNIQUE NOT NULL",
-				"refresh_token": "TEXT UNIQUE NOT NULL",
-				"expires_at":    "TIMESTAMP NOT NULL",
-				"created_at":    "TIMESTAMP DEFAULT now()",
-				"updated_at":    "TIMESTAMP DEFAULT now()",
+				"id":                 "UUID PRIMARY KEY",
+				"user_id":            "UUID NOT NULL",
+				"refresh_token":      "TEXT UNIQUE NOT NULL",
+				"status":             "VARCHAR(16) NOT NULL DEFAULT 'active'",
+				"refresh_expires_at": "TIMESTAMP NOT NULL",
+				"created_at":         "TIMESTAMP DEFAULT now()",
+				"updated_at":         "TIMESTAMP DEFAULT now()",
+			},
+			Constraints: []string{
+				// Mỗi session phải gắn với user tồn tại
+				"FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE",
+
+				// status chỉ có thể nhận một trong các giá trị hợp lệ
+				"CHECK (status IN ('active','revoked','expired'))",
 			},
 		},
 	}

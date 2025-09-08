@@ -31,6 +31,10 @@ type createUserResponse struct {
 	UserID string `json:"user_id"`
 }
 
+type getUserIDResponse struct {
+	UserID string `json:"user_id"`
+}
+
 // CreateUserProfile calls UserService API to create user
 func (u *UserService) CreateUserProfile(username, email string) (string, error) {
 	url := fmt.Sprintf("%s/users", u.BaseURL)
@@ -101,7 +105,7 @@ func (u *UserService) CheckUserExists(username, email string) (bool, bool, error
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return false, false, fmt.Errorf("failed to check user exists, status: %d", resp.StatusCode)
+		return false, false, fmt.Errorf("[UserServiceClient] failed to check user exists, status: %d", resp.StatusCode)
 	}
 
 	var res struct {
@@ -114,4 +118,28 @@ func (u *UserService) CheckUserExists(username, email string) (bool, bool, error
 	}
 
 	return res.ExistsUsername, res.ExistsEmail, nil
+}
+
+func (u *UserService) GetUserIdByName(username string) (string, error) {
+	url := fmt.Sprintf("%s/users/by-username/%s", u.BaseURL, username)
+
+	resp, err := u.Client.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("[UserServiceClient] failed to call user service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return "", fmt.Errorf("[UserServiceClient] user not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("[UserServiceClient] user service returned status %d", resp.StatusCode)
+	}
+
+	var result getUserIDResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("[UserServiceClient] failed to decode response: %w", err)
+	}
+
+	return result.UserID, nil
 }

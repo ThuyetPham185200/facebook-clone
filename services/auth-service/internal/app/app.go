@@ -49,8 +49,6 @@ func (a *App) init() {
 		RefreshTTL:    7 * 24 * time.Hour,
 	}
 
-	// có thể dùng in-memory store hoặc postgres store
-	a.session = session.NewSessionManager(cfg, store.NewInMemoryTokenStore())
 	dbcredentalscfg := &store.PostGresConfig{
 		Host:     "localhost", // IP
 		Port:     "5432",      // Port
@@ -58,6 +56,9 @@ func (a *App) init() {
 		Password: "123456a@",  // password
 		DBname:   "mydb",      // db
 	}
+
+	a.session = session.NewSessionManager(cfg, store.NewPostgresTokenStore(dbcredentalscfg))
+
 	redisstorecfg := &store.RedisConfig{
 		Host:     "localhost",
 		Port:     "6379",
