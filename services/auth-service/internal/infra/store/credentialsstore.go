@@ -105,14 +105,19 @@ func (c *CredentialsStore) Save(userID, username, email, hashed string) error {
 	if c.RedisClient != nil && c.RedisClient.GetClient() != nil {
 		// Cache username
 		if username != "" {
-			if err := c.RedisClient.SetString("user:"+username, userID, 24*time.Hour); err != nil {
+			if err := c.RedisClient.SetKey("user:"+username, userID, 24*time.Hour); err != nil {
 				fmt.Printf("[CredentialsStore] failed to cache username: %v\n", err)
+			} else {
+				_, err := c.RedisClient.KeyExists(username)
+				if err != nil {
+					fmt.Printf("%s not stored\n", username)
+				}
 			}
 		}
 
 		// Cache email
 		if email != "" {
-			if err := c.RedisClient.SetString("email:"+email, userID, 24*time.Hour); err != nil {
+			if err := c.RedisClient.SetKey("email:"+email, userID, 24*time.Hour); err != nil {
 				fmt.Printf("[CredentialsStore] failed to cache email: %v\n", err)
 			}
 		}
@@ -122,13 +127,15 @@ func (c *CredentialsStore) Save(userID, username, email, hashed string) error {
 }
 
 func (c *CredentialsStore) GetUserIdByName(username string) (string, error) {
+	//
+
 	if c.RedisClient.GetClient() == nil {
 		return "", fmt.Errorf("[CredentialsStore] redis client not initialized")
 	}
 	userid, err := c.RedisClient.GetKey("user:" + username)
 	if err != nil {
 		fmt.Printf("[CredentialsStore] failed to get username from cache: %v\n", err)
-		return "", nil
+		return "", err
 	}
 	return userid, nil
 }
@@ -155,4 +162,24 @@ func (c *CredentialsStore) GetCredentialByUserID(userID string) (*model.Credenti
 	}
 
 	return &cre, nil
+}
+
+func (c *CredentialsStore) UpdatePassword(userID, newHash string) error {
+	query := `
+		UPDATE credentials
+		SET password_hash = $1,
+		    updated_at = now()
+		WHERE user_id = $2
+	`
+	res, err := c.DBclient.DB.Exec(query, newHash, userID)
+	if err != nil {
+		return fmt.Errorf("[CredentialsStore] failed to update password for user_id=%s: %w", userID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("[CredentialsStore] no rows updated for user_id=%s", userID)
+	}
+
+	return nil
 }

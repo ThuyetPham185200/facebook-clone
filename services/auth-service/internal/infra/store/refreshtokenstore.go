@@ -3,6 +3,8 @@ package store
 import (
 	dbclient "authservice/internal/infra/postgresclient"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // RefreshTokenStore interface cho việc quản lý refresh token
@@ -26,15 +28,18 @@ func NewPostgresTokenStore(posgresconfig *PostGresConfig) RefreshTokenStore {
 }
 
 func (s *postgresTokenStore) Save(userID string, refreshToken string, ttl time.Duration) error {
+
+	newID := uuid.New().String()
+
 	query := `
-		INSERT INTO sessions (user_id, refresh_token, refresh_expires_at, created_at, updated_at)
-		VALUES ($1, $2, $3, now(), now())
+		INSERT INTO sessions (id, user_id, refresh_token, refresh_expires_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, now(), now())
 		ON CONFLICT (refresh_token) DO UPDATE
 		SET refresh_expires_at = EXCLUDED.refresh_expires_at,
-		    updated_at = now()
-	`
+			updated_at = now()
+		`
 	expiry := time.Now().Add(ttl)
-	_, err := s.DB.DB.Exec(query, userID, refreshToken, expiry)
+	_, err := s.DB.DB.Exec(query, newID, userID, refreshToken, expiry)
 	return err
 }
 

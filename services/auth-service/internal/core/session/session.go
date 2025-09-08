@@ -15,6 +15,7 @@ type SessionManager interface {
 	RefreshToken(refreshToken string) (newAccess, newRefresh string, err error)
 	Logout(userID string, refreshToken string) error
 	LogoutAll(userID string) error
+	ParseToken(tokenStr string) (jwt.MapClaims, string, error)
 }
 
 // ---- JWT Config ----
@@ -112,6 +113,30 @@ func (sm *sessionManager) parseToken(tokenStr string, secret []byte) (jwt.MapCla
 			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return secret, nil
+	})
+	if err != nil || !token.Valid {
+		return nil, "", errors.New("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, "", errors.New("invalid claims")
+	}
+
+	uid, ok := claims["user_id"].(string)
+	if !ok {
+		return nil, "", errors.New("invalid user_id claim")
+	}
+
+	return claims, uid, nil
+}
+
+func (sm *sessionManager) ParseToken(tokenStr string) (jwt.MapClaims, string, error) {
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return sm.cfg.AccessSecret, nil
 	})
 	if err != nil || !token.Valid {
 		return nil, "", errors.New("invalid token")

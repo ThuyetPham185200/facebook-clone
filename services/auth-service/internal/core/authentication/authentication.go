@@ -13,10 +13,10 @@ import (
 type AuthenticationManager interface {
 	Register(username, email, password string) (userID string, accessToken, refreshToken string, err error)
 	Login(login, password string) (accessToken, refreshToken string, err error)
-	// ChangePassword(userID int64, oldPassword, newPassword string) error
-	// DeleteAccount(userID int64) error
-	// Logout(userID int64, refreshToken string) error
-	// LogoutAll(userID int64) error
+	ChangePassword(string string, oldPassword, newPassword string) error
+	// DeleteAccount(userID string) error
+	// Logout(userID string, refreshToken string) error
+	// LogoutAll(userID string) error
 	// RefreshToken(refreshToken string) (newAccess, newRefresh string, err error)
 }
 
@@ -95,7 +95,7 @@ func (am *authenticationManager) Login(login, password string) (string, string, 
 	if err != nil {
 		userid, err = am.userService.GetUserIdByName(login)
 		if err != nil {
-			return "", "", errors.New("invalid credentials")
+			return "", "", err
 		}
 	}
 
@@ -116,29 +116,29 @@ func (am *authenticationManager) Login(login, password string) (string, string, 
 	return access, refresh, nil
 }
 
-// // ---- Change Password ----
-// func (am *authenticationManager) ChangePassword(userID int64, oldPassword, newPassword string) error {
-// 	cred, err := am.credStore.GetByUserID(userID)
-// 	if err != nil {
-// 		return errors.New("user not found")
-// 	}
+// ---- Change Password ----
+func (am *authenticationManager) ChangePassword(userID string, oldPassword, newPassword string) error {
+	cred, err := am.credStore.GetCredentialByUserID(userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
 
-// 	if err := bcrypt.CompareHashAndPassword([]byte(cred.PasswordHash), []byte(oldPassword)); err != nil {
-// 		return errors.New("invalid old password")
-// 	}
+	if err := bcrypt.CompareHashAndPassword([]byte(cred.PasswordHash), []byte(oldPassword)); err != nil {
+		return errors.New("invalid old password")
+	}
 
-// 	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-// 	if err != nil {
-// 		return err
-// 	}
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
 
-// 	if err := am.credStore.UpdatePassword(userID, string(newHash)); err != nil {
-// 		return err
-// 	}
+	if err := am.credStore.UpdatePassword(userID, string(newHash)); err != nil {
+		return err
+	}
 
-// 	// revoke all sessions after password change
-// 	return am.sessionManager.LogoutAll(userID)
-// }
+	// revoke all sessions after password change
+	return am.sessionManager.LogoutAll(userID)
+}
 
 // // ---- Delete Account ----
 // func (am *authenticationManager) DeleteAccount(userID int64) error {

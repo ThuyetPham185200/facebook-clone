@@ -88,17 +88,9 @@ func (u *UserService) CreateUserProfile(username, email string) (string, error) 
 
 // CheckUserExists calls UserService API to check if a username/email already exists
 func (u *UserService) CheckUserExists(username, email string) (bool, bool, error) {
-	url := fmt.Sprintf("%s/users/exists", u.BaseURL)
+	url := fmt.Sprintf("%s/users/exists?username=%s&email=%s", u.BaseURL, username, email)
 
-	reqBody, err := json.Marshal(map[string]string{
-		"username": username,
-		"email":    email,
-	})
-	if err != nil {
-		return false, false, err
-	}
-
-	resp, err := u.Client.Post(url, "application/json", bytes.NewBuffer(reqBody))
+	resp, err := u.Client.Get(url)
 	if err != nil {
 		return false, false, err
 	}
@@ -122,6 +114,7 @@ func (u *UserService) CheckUserExists(username, email string) (bool, bool, error
 
 func (u *UserService) GetUserIdByName(username string) (string, error) {
 	url := fmt.Sprintf("%s/users/by-username/%s", u.BaseURL, username)
+	fmt.Printf("%s - %s\n", username, url)
 
 	resp, err := u.Client.Get(url)
 	if err != nil {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"userservice/internal/model"
@@ -82,33 +83,29 @@ func (api *UserAPI) handleCreateUserProfile(w http.ResponseWriter, r *http.Reque
 	utils.WriteJSON(w, http.StatusCreated, user) // dùng 201 Created thay vì 200 OK
 }
 
-// GET /users/exists
+// GET /users/exists?username=abc&email=abc@example.com
 func (api *UserAPI) handleCheckExist(w http.ResponseWriter, r *http.Request) {
-	var req model.CheckExistRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("[UserAPI] invalid request body: %v", err)
-		utils.WriteError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
+	username := r.URL.Query().Get("username")
+	email := r.URL.Query().Get("email")
 
-	log.Printf("[UserAPI] handleCheckExist called. username=%s, email=%s", req.Username, req.Email)
+	log.Printf("[UserAPI] handleCheckExist called. username=%s, email=%s", username, email)
 
-	existsUsername, err := api.userstore.UsernameExists(req.Username)
+	existsUsername, err := api.userstore.UsernameExists(username)
 	if err != nil {
-		log.Printf("[UserAPI] DB error when checking username=%s: %v", req.Username, err)
+		log.Printf("[UserAPI] DB error when checking username=%s: %v", username, err)
 		utils.WriteError(w, http.StatusInternalServerError, "DB error")
 		return
 	}
 
-	existsEmail, err := api.userstore.EmailExists(req.Email)
+	existsEmail, err := api.userstore.EmailExists(email)
 	if err != nil {
-		log.Printf("[UserAPI] DB error when checking email=%s: %v", req.Email, err)
+		log.Printf("[UserAPI] DB error when checking email=%s: %v", email, err)
 		utils.WriteError(w, http.StatusInternalServerError, "DB error")
 		return
 	}
 
 	log.Printf("[UserAPI] check exist result: username=%s (exists=%v), email=%s (exists=%v)",
-		req.Username, existsUsername, req.Email, existsEmail)
+		username, existsUsername, email, existsEmail)
 
 	utils.WriteJSON(w, http.StatusOK, model.CheckExistResponse{
 		ExistsUsername: existsUsername,
@@ -118,6 +115,8 @@ func (api *UserAPI) handleCheckExist(w http.ResponseWriter, r *http.Request) {
 
 // GET /users/by-username/{username}
 func (api *UserAPI) handleGetUseridByUsername(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Get here 2!")
+
 	vars := mux.Vars(r)
 	username := vars["username"]
 

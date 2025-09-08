@@ -5,8 +5,11 @@ import (
 	"authservice/internal/model"
 	"authservice/utils"
 	"encoding/json"
+	"log"
 	"net/http"
+	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 )
 
@@ -14,14 +17,15 @@ import (
 type AuthenticationManager interface {
 	Register(username, email, password string) (userID int64, accessToken, refreshToken string, err error)
 	Login(login, password string) (accessToken, refreshToken string, err error)
-	// ChangePassword(userID int64, oldPwd, newPwd string) error
-	// DeleteAccount(userID int64) error
+	ChangePassword(userID string, oldPwd, newPwd string) error
+	// DeleteAccount(userID string) error
 }
 
 type SessionManager interface {
 	RefreshToken(refreshToken string) (newAccess, newRefresh string, err error)
-	Logout(userID int64, refreshToken string) error
-	LogoutAll(userID int64) error
+	Logout(userID string, refreshToken string) error
+	LogoutAll(userID string) error
+	ParseToken(tokenStr string) (jwt.MapClaims, string, error)
 }
 
 type PasswordResetManager interface {
@@ -31,24 +35,24 @@ type PasswordResetManager interface {
 
 // ---- API Layer ----
 type AuthAPI struct {
-	authManager auth.AuthenticationManager
-	// sessionManager SessionManager
+	authManager    auth.AuthenticationManager
+	sessionManager SessionManager
 	// resetManager   PasswordResetManager
 }
 
-// func NewAuthAPI(am AuthenticationManager, sm SessionManager, prm PasswordResetManager) *AuthAPI {
-// 	return &AuthAPI{am, sm, prm}
-// }
-
-func NewAuthAPI(am auth.AuthenticationManager) *AuthAPI {
-	//return &AuthAPI{am, sm, prm}
-	return &AuthAPI{am}
+func NewAuthAPI(am AuthenticationManager, sm SessionManager) *AuthAPI {
+	return &AuthAPI{am, sm}
 }
+
+// func NewAuthAPI(am auth.AuthenticationManager) *AuthAPI {
+// 	//return &AuthAPI{am, sm, prm}
+// 	return &AuthAPI{am}
+// }
 
 func (api *AuthAPI) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/register", api.handleRegister).Methods("POST")
 	r.HandleFunc("/login", api.handleLogin).Methods("POST")
-	// r.HandleFunc("/me/password", api.handleChangePassword).Methods("PUT")
+	r.HandleFunc("/me/password", api.handleChangePassword).Methods("PUT")
 	// r.HandleFunc("/me", api.handleDeleteAccount).Methods("DELETE")
 	// r.HandleFunc("/refresh", api.handleRefreshToken).Methods("POST")
 	// r.HandleFunc("/logout", api.handleLogout).Methods("POST")
@@ -94,19 +98,35 @@ func (api *AuthAPI) handleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// func (api *AuthAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) {
-// 	var req changePasswordRequest
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		utils.WriteJSON(w, http.StatusBadRequest, "Invalid data")
-// 		return
-// 	}
-// 	userID := r.Context().Value("user_id").(int64)
-// 	if err := api.authManager.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
-// 		utils.WriteJSON(w, http.StatusForbidden, err.Error())
-// 		return
-// 	}
-// 	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "Password updated"})
-// }
+func (api *AuthAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	var req model.ChangePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, "Invalid data")
+		return
+	}
+
+	// 2. Lấy Bearer token từ header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		utils.WriteError(w, http.StatusUnauthorized, "Missing or invalid Authorization header")
+		return
+	}
+	bareToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+	claims, userID, err := api.sessionManager.ParseToken(bareToken)
+	if err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, "Invalid or expired token")
+		return
+	}
+	log.Printf("[AuthAPI] ChangePassword request for userID=%s, claims=%v", userID, claims)
+
+	// 4. Kiểm tra old_password
+	if err := api.authManager.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
+		utils.WriteJSON(w, http.StatusForbidden, err.Error())
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "Password updated"})
+}
 
 // func (api *AuthAPI) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 // 	userID := r.Context().Value("user_id").(int64)
