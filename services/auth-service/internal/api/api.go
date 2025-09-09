@@ -18,7 +18,7 @@ type AuthenticationManager interface {
 	Register(username, email, password string) (userID string, accessToken, refreshToken string, err error)
 	Login(login, password string) (accessToken, refreshToken string, err error)
 	ChangePassword(userID string, oldPwd, newPwd string) error
-	// DeleteAccount(userID string) error
+	DeleteAccount(userID string) error
 }
 
 type SessionManager interface {
@@ -53,7 +53,7 @@ func (api *AuthAPI) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/register", api.handleRegister).Methods("POST")
 	r.HandleFunc("/login", api.handleLogin).Methods("POST")
 	r.HandleFunc("/me/password", api.handleChangePassword).Methods("PUT")
-	// r.HandleFunc("/me", api.handleDeleteAccount).Methods("DELETE")
+	r.HandleFunc("/me", api.handleDeleteAccount).Methods("DELETE")
 	r.HandleFunc("/refresh", api.handleRefreshToken).Methods("POST")
 	// r.HandleFunc("/logout", api.handleLogout).Methods("POST")
 	// r.HandleFunc("/logout_all", api.handleLogoutAll).Methods("POST")
@@ -128,14 +128,27 @@ func (api *AuthAPI) handleChangePassword(w http.ResponseWriter, r *http.Request)
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "Password updated"})
 }
 
-// func (api *AuthAPI) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
-// 	userID := r.Context().Value("user_id").(int64)
-// 	if err := api.authManager.DeleteAccount(userID); err != nil {
-// 		utils.WriteJSON(w, http.StatusForbidden, "Unauthorized")
-// 		return
-// 	}
-// 	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "Account deleted"})
-// }
+func (api *AuthAPI) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	// 1. Lấy Bearer token từ header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		utils.WriteError(w, http.StatusUnauthorized, "Missing or invalid Authorization header")
+		return
+	}
+	bareToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+	claims, userID, err := api.sessionManager.ParseToken(bareToken)
+	if err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, "Invalid or expired token")
+		return
+	}
+	log.Printf("[AuthAPI] DeleteAccount request for userID=%s, claims=%v", userID, claims)
+	if err := api.authManager.DeleteAccount(userID); err != nil {
+		utils.WriteJSON(w, http.StatusForbidden, "Unauthorized")
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "Account deleted"})
+}
 
 func (api *AuthAPI) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	var req model.RefreshRequest

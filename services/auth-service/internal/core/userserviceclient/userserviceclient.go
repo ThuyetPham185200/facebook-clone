@@ -136,3 +136,23 @@ func (u *UserService) GetUserIdByName(username string) (string, error) {
 
 	return result.UserID, nil
 }
+
+func (u *UserService) DeleteUserProfile(userID string) error {
+	url := fmt.Sprintf("%s/users/%s", u.BaseURL, userID)
+
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("[UserServiceClient] failed to build delete request: %w", err)
+	}
+
+	resp, err := u.Client.Do(req)
+	if err != nil {
+		return fmt.Errorf("[UserServiceClient] failed to delete user: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("[UserServiceClient] unexpected status when deleting user: %d", resp.StatusCode)
+	}
+	return nil
+}

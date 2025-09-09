@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	dbclient "userservice/internal/infra/postgresclient"
 	"userservice/internal/model"
@@ -85,20 +86,20 @@ func (us *UserStore) CreateUserProfile(username, email string) (*model.User, err
 }
 
 func (us *UserStore) UsernameExists(username string) (bool, error) {
-	query := `SELECT 1 FROM users WHERE username = $1 LIMIT 1`
+	query := `SELECT 1 FROM users WHERE username = $1 AND is_deleted = FALSE LIMIT 1`
 	var exists int
 	err := us.DBclient.DB.QueryRow(query, username).Scan(&exists)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
 		}
-		return false, err
+		return false, fmt.Errorf("[UserStore] failed to check username=%s: %w", username, err)
 	}
 	return true, nil
 }
 
 func (us *UserStore) EmailExists(email string) (bool, error) {
-	query := `SELECT 1 FROM users WHERE email = $1 LIMIT 1`
+	query := `SELECT 1 FROM users WHERE email = $1 AND is_deleted = FALSE LIMIT 1`
 	var exists int
 	err := us.DBclient.DB.QueryRow(query, email).Scan(&exists)
 	if err != nil {
@@ -114,7 +115,7 @@ func (us *UserStore) GetUserByUsername(username string) (*model.User, error) {
 	query := `
 		SELECT user_id, username, email, bio, gender, date_of_birth, avatar_url, is_deleted, created_at, updated_at
 		FROM users
-		WHERE username = $1
+		WHERE username = $1 AND is_deleted = FALSE
 	`
 
 	row := us.DBclient.DB.QueryRow(query, username)
@@ -140,4 +141,48 @@ func (us *UserStore) GetUserByUsername(username string) (*model.User, error) {
 	}
 
 	return &u, nil
+}
+
+func (us *UserStore) HardDeleteUserProfile(userID string) error {
+	query := `
+		delete from users where user_id = $1
+	`
+	result, err := us.DBclient.DB.Exec(query, userID)
+
+	if err != nil {
+		return fmt.Errorf("[UserStore] failed to delete user %s: %w", userID, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("[UserStore] failed to check rows affected for user %s: %w", userID, err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("[UserStore] no user found with id %s", userID)
+	}
+
+	return nil
+}
+
+func (us *UserStore) SoftDeleteUserProfile(userID string) error {
+	query := `
+		update users
+		set is_deleted = TRUE
+		where user_id = $1
+	`
+	result, err := us.DBclient.DB.Exec(query, userID)
+
+	if err != nil {
+		return fmt.Errorf("[UserStore] failed to soft delete user %s: %w", userID, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("[UserStore] failed to check rows affected for user %s: %w", userID, err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("[UserStore] no user found with id %s", userID)
+	}
+
+	return nil
 }

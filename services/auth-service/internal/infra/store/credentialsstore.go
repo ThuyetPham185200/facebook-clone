@@ -113,6 +113,15 @@ func (c *CredentialsStore) Save(userID, username, email, hashed string) error {
 					fmt.Printf("%s not stored\n", username)
 				}
 			}
+
+			if err := c.RedisClient.SetKey("user:"+userID, username, 24*time.Hour); err != nil {
+				fmt.Printf("[CredentialsStore] failed to cache username: %v\n", err)
+			} else {
+				_, err := c.RedisClient.KeyExists(userID)
+				if err != nil {
+					fmt.Printf("%s not stored\n", userID)
+				}
+			}
 		}
 
 		// Cache email
@@ -181,5 +190,37 @@ func (c *CredentialsStore) UpdatePassword(userID, newHash string) error {
 		return fmt.Errorf("[CredentialsStore] no rows updated for user_id=%s", userID)
 	}
 
+	return nil
+}
+
+func (c *CredentialsStore) MarkDeleted(userID string) error {
+	query := `
+		UPDATE credentials
+		SET status = 'disabled',
+		    updated_at = now()
+		WHERE user_id = $1
+	`
+	result, err := c.DBclient.DB.Exec(query, userID)
+	if err != nil {
+		return fmt.Errorf("[CredentialsStore] failed to disable credentials for user_id=%s: %w", userID, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("[CredentialsStore] failed to check rows affected for user_id=%s: %w", userID, err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("[CredentialsStore] no credentials found for user_id=%s", userID)
+	}
+	fmt.Printf("[CredentialsStore] Deleted %s in Database\n", userID)
+
+	_, err = c.RedisClient.KeyExists("user:" + userID)
+	if err != nil {
+		fmt.Printf("%s not stored\n", userID)
+	} else {
+		fmt.Printf("[CredentialsStore] Deleted %s in cache\n", userID)
+		c.RedisClient.DeleteKey("user:" + userID)
+	}
 	return nil
 }

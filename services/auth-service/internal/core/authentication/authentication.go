@@ -14,7 +14,7 @@ type AuthenticationManager interface {
 	Register(username, email, password string) (userID string, accessToken, refreshToken string, err error)
 	Login(login, password string) (accessToken, refreshToken string, err error)
 	ChangePassword(string string, oldPassword, newPassword string) error
-	// DeleteAccount(userID string) error
+	DeleteAccount(userID string) error
 	// Logout(userID string, refreshToken string) error
 	// LogoutAll(userID string) error
 	// RefreshToken(refreshToken string) (newAccess, newRefresh string, err error)
@@ -141,20 +141,20 @@ func (am *authenticationManager) ChangePassword(userID string, oldPassword, newP
 }
 
 // // ---- Delete Account ----
-// func (am *authenticationManager) DeleteAccount(userID int64) error {
-// 	// soft delete user in User Service
-// 	if err := am.userService.DeleteUserProfile(userID); err != nil {
-// 		return err
-// 	}
+func (am *authenticationManager) DeleteAccount(userID string) error {
+	// soft delete user in User Service
+	if err := am.userService.DeleteUserProfile(userID); err != nil {
+		return err
+	}
 
-// 	// mark credentials deleted
-// 	if err := am.credStore.MarkDeleted(userID); err != nil {
-// 		return err
-// 	}
+	// mark credentials deleted
+	if err := am.credStore.MarkDeleted(userID); err != nil {
+		return err
+	}
 
-// 	// revoke sessions
-// 	return am.sessionManager.LogoutAll(userID)
-// }
+	// revoke sessions
+	return am.sessionManager.LogoutAll(userID)
+}
 
 // // ---- Logout single session ----
 // func (am *authenticationManager) Logout(userID int64, refreshToken string) error {

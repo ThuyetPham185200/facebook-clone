@@ -20,3 +20,14 @@ curl -X PUT http://localhost:9000/me/password \
     "old_password": "123456a@",
     "new_password": "1234567a@"
   }'
+
+# Refresh token
+curl -X POST http://localhost:9000/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTgwMjk5NjksInVzZXJfaWQiOiI4OGFjZGU0ZS1hYzFlLTRlMGEtYTY1OS0xYTk4NjE2ZDZmMmEifQ.hkYHVymiqXR-4w0VuD46j4tPzvHcfVeM963KMMefNCQ"
+  }'
+
+# Delete account
+curl -X DELETE http://localhost:9000/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTc0MzA0OTMsInVzZXJfaWQiOiI4YzFhNmEwYS02M2EzLTQxYTgtOWQ5My1kOGYzOTE5MjU2OTAifQ.YGTXzgqs3fznBPaGFs-TF8ETqpPiEcQQjgDk_BM84nY"

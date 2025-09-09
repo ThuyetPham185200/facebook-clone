@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"userservice/internal/model"
@@ -18,6 +17,7 @@ type UserStore interface {
 	UsernameExists(username string) (bool, error)
 	EmailExists(username string) (bool, error)
 	GetUserByUsername(username string) (*model.User, error)
+	SoftDeleteUserProfile(userID string) error
 }
 
 // ---- API Layer ----
@@ -34,6 +34,7 @@ func (api *UserAPI) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/users", api.handleCreateUserProfile).Methods("POST")
 	r.HandleFunc("/users/exists", api.handleCheckExist).Methods("GET")
 	r.HandleFunc("/users/by-username/{username}", api.handleGetUseridByUsername).Methods("GET")
+	r.HandleFunc("/users/{user_id}", api.handleDeleteUser).Methods("DELETE")
 }
 
 // ---- Handlers ----
@@ -115,7 +116,6 @@ func (api *UserAPI) handleCheckExist(w http.ResponseWriter, r *http.Request) {
 
 // GET /users/by-username/{username}
 func (api *UserAPI) handleGetUseridByUsername(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Get here 2!")
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -142,4 +142,29 @@ func (api *UserAPI) handleGetUseridByUsername(w http.ResponseWriter, r *http.Req
 	// Response
 	resp := map[string]string{"user_id": user.UserID}
 	utils.WriteJSON(w, http.StatusOK, resp)
+}
+
+func (api *UserAPI) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID := vars["user_id"]
+
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "missing userid in path")
+		return
+	}
+
+	log.Printf("[UserAPI] handleDeleteUser called. userID=%s", userID)
+
+	// gọi xuống UserStore để xóa user
+	err := api.userstore.SoftDeleteUserProfile(userID)
+	if err != nil {
+		log.Printf("[UserAPI] failed to delete user %s: %v", userID, err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to delete user")
+		return
+	}
+
+	log.Printf("[UserAPI] user %s deleted successfully", userID)
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"message": "user deleted successfully",
+	})
 }
