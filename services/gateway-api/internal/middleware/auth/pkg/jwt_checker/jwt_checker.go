@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // JWTChecker is a middleware that uses a JWTStrategy to verify tokens.
@@ -69,6 +70,12 @@ func (j *JWTChecker) TokenCheck(authHeader string) (*Claims, bool) {
 	// Optional: kiểm tra UserID không rỗng
 	if claims == nil || claims.UserID == "" {
 		log.Println("Token has empty UserID")
+		return nil, false
+	}
+
+	// Kiểm tra exp (nếu dùng RegisteredClaims)
+	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+		log.Println("Token expired")
 		return nil, false
 	}
 

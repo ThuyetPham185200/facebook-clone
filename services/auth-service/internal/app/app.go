@@ -69,7 +69,7 @@ func (a *App) init() {
 		store.NewCredentialsStore(dbcredentalscfg, redisstorecfg),
 		userserviceclient.NewUserServiceClient("http://localhost:9001"),
 		a.session)
-	a.authapi = api.NewAuthAPI(a.authentication)
+	a.authapi = api.NewAuthAPI(a.authentication, a.session)
 	a.authapi.RegisterRoutes(router)
 	// 3. Khởi tạo http server
 	a.httpserver = server.NewHttpServer("localhost:9000", router)

@@ -15,7 +15,7 @@ import (
 
 // // ---- Manager Interfaces ----
 type AuthenticationManager interface {
-	Register(username, email, password string) (userID int64, accessToken, refreshToken string, err error)
+	Register(username, email, password string) (userID string, accessToken, refreshToken string, err error)
 	Login(login, password string) (accessToken, refreshToken string, err error)
 	ChangePassword(userID string, oldPwd, newPwd string) error
 	// DeleteAccount(userID string) error
@@ -54,7 +54,7 @@ func (api *AuthAPI) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/login", api.handleLogin).Methods("POST")
 	r.HandleFunc("/me/password", api.handleChangePassword).Methods("PUT")
 	// r.HandleFunc("/me", api.handleDeleteAccount).Methods("DELETE")
-	// r.HandleFunc("/refresh", api.handleRefreshToken).Methods("POST")
+	r.HandleFunc("/refresh", api.handleRefreshToken).Methods("POST")
 	// r.HandleFunc("/logout", api.handleLogout).Methods("POST")
 	// r.HandleFunc("/logout_all", api.handleLogoutAll).Methods("POST")
 	// r.HandleFunc("/password/reset/request", api.handleRequestPasswordReset).Methods("POST")
@@ -137,22 +137,22 @@ func (api *AuthAPI) handleChangePassword(w http.ResponseWriter, r *http.Request)
 // 	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "Account deleted"})
 // }
 
-// func (api *AuthAPI) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
-// 	var req refreshRequest
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		utils.WriteJSON(w, http.StatusBadRequest, "Invalid data")
-// 		return
-// 	}
-// 	access, refresh, err := api.sessionManager.RefreshToken(req.RefreshToken)
-// 	if err != nil {
-// 		utils.WriteJSON(w, http.StatusUnauthorized, "Invalid refresh token")
-// 		return
-// 	}
-// 	utils.WriteJSON(w, http.StatusOK, map[string]string{
-// 		"access_token":  access,
-// 		"refresh_token": refresh,
-// 	})
-// }
+func (api *AuthAPI) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req model.RefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, "Invalid data")
+		return
+	}
+	access, refresh, err := api.sessionManager.RefreshToken(req.RefreshToken)
+	if err != nil {
+		utils.WriteJSON(w, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"access_token":  access,
+		"refresh_token": refresh,
+	})
+}
 
 // func (api *AuthAPI) handleLogout(w http.ResponseWriter, r *http.Request) {
 // 	userID := r.Context().Value("user_id").(int64)
