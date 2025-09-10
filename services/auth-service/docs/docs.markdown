@@ -30,4 +30,4 @@ curl -X POST http://localhost:9000/refresh \
 
 # Delete account
 curl -X DELETE http://localhost:9000/me \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTc0MzA0OTMsInVzZXJfaWQiOiI4YzFhNmEwYS02M2EzLTQxYTgtOWQ5My1kOGYzOTE5MjU2OTAifQ.YGTXzgqs3fznBPaGFs-TF8ETqpPiEcQQjgDk_BM84nY"
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTc0OTA4MzgsInVzZXJfaWQiOiI3NDM2NDNjYi1lNDEyLTRlMzMtOWI4Mi00NzlmYmYwNTA4NDQifQ.PbhxEY5uXtxhGWfdqnjXZ0PiD8G9KcDoFcIY-JT_O8g"

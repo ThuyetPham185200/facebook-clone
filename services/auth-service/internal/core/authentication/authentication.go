@@ -5,6 +5,7 @@ import (
 	"authservice/internal/core/userserviceclient"
 	"authservice/internal/infra/store"
 	"errors"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -96,7 +97,11 @@ func (am *authenticationManager) Login(login, password string) (string, string, 
 		userid, err = am.userService.GetUserIdByName(login)
 		if err != nil {
 			return "", "", err
+		} else {
+			fmt.Printf("[authenticationManager - Login] got user_id on Userservice %s", userid)
 		}
+	} else {
+		fmt.Printf("[authenticationManager - Login] got user_id on cache %s", userid)
 	}
 
 	// step 2: get hasedpassword

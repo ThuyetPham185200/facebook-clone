@@ -209,18 +209,37 @@ func (c *CredentialsStore) MarkDeleted(userID string) error {
 	if err != nil {
 		return fmt.Errorf("[CredentialsStore] failed to check rows affected for user_id=%s: %w", userID, err)
 	}
-
 	if rowsAffected == 0 {
 		return fmt.Errorf("[CredentialsStore] no credentials found for user_id=%s", userID)
 	}
-	fmt.Printf("[CredentialsStore] Deleted %s in Database\n", userID)
+	fmt.Printf("[CredentialsStore] Disabled credentials for %s in Database\n", userID)
 
-	_, err = c.RedisClient.KeyExists("user:" + userID)
+	// --- Cache cleanup ---
+	existed, err := c.RedisClient.KeyExists("user:" + userID)
 	if err != nil {
-		fmt.Printf("%s not stored\n", userID)
-	} else {
-		fmt.Printf("[CredentialsStore] Deleted %s in cache\n", userID)
-		c.RedisClient.DeleteKey("user:" + userID)
+		return fmt.Errorf("[CredentialsStore] failed to check cache for user %s: %w", userID, err)
 	}
+	if existed {
+		fmt.Printf("[CredentialsStore] Found %s in cache, deleting...\n", userID)
+
+		// Lấy username từ cache bằng userID
+		username, err := c.RedisClient.GetKey("user:" + userID)
+		if err != nil {
+			return fmt.Errorf("[CredentialsStore] failed to get username for user_id=%s from cache: %w", userID, err)
+		}
+		if username != "" {
+			if err := c.RedisClient.DeleteKey("user:" + username); err != nil {
+				return fmt.Errorf("[CredentialsStore] failed to delete username %s from cache: %w", username, err)
+			}
+			fmt.Printf("[CredentialsStore] Deleted username %s from cache\n", username)
+		}
+
+		// Xóa luôn cache theo userID
+		if err := c.RedisClient.DeleteKey("user:" + userID); err != nil {
+			return fmt.Errorf("[CredentialsStore] failed to delete userID %s from cache: %w", userID, err)
+		}
+		fmt.Printf("[CredentialsStore] Deleted userID %s from cache\n", userID)
+	}
+
 	return nil
 }
