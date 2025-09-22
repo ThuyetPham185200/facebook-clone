@@ -15,3 +15,8 @@ type Media struct {
 	Status        string         `json:"status"`
 	CreatedAt     time.Time      `json:"created_at"`
 }
+
+type NewPostEvent struct {
+	PostID string
+	UserID string
+}

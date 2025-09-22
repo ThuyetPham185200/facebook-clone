@@ -10,14 +10,16 @@ import (
 )
 
 type PostManager struct {
-	MediaStore     *store.MediaStore
-	PostStore      *store.PostStore
-	PostMediaStore *store.PostMediaStore
+	MediaStore        *store.MediaStore
+	PostStore         *store.PostStore
+	PostMediaStore    *store.PostMediaStore
+	newposteventqueue *chan model.NewPostEvent
 }
 
-func NewPostManager(mediaStore *store.MediaStore) *PostManager {
+func NewPostManager(mediaStore *store.MediaStore, newposteventqueue_ *chan model.NewPostEvent) *PostManager {
 	return &PostManager{
-		MediaStore: mediaStore,
+		MediaStore:        mediaStore,
+		newposteventqueue: newposteventqueue_,
 	}
 }
 
@@ -43,6 +45,13 @@ func (p *PostManager) CreatePost(userID string, content string, mediaIDs []strin
 		// 4. Update media status to 'uploaded'
 		if err := p.MediaStore.UpdateMediaStatus(mediaIDs, "uploaded"); err != nil {
 			return "", err
+		}
+	}
+
+	if p.newposteventqueue != nil {
+		*p.newposteventqueue <- model.NewPostEvent{
+			PostID: postID,
+			UserID: userID,
 		}
 	}
 
