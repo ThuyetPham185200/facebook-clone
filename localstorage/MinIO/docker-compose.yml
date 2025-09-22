@@ -8,8 +8,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000" # S3 API
-      - "9001:9001" # Web Console
-    command: server /data --console-address ":9001"
+      - "9100:9000" # S3 API inside -> 9100 outside
+      - "9101:9001" # Console inside -> 9101 outside
+    command: server /data --address ":9000" --console-address ":9001"
     volumes:
       - ./minio-data:/data

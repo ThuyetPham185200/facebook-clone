@@ -17,8 +17,6 @@ func NewPostsTable(client *dbclient.PostgresClient) *PostsTable {
 				"post_id":    "UUID PRIMARY KEY",
 				"user_id":    "UUID NOT NULL",
 				"content":    "TEXT",
-				"media_url":  "TEXT",
-				"media_type": "VARCHAR(20)", // 'image' hoặc 'video'
 				"created_at": "TIMESTAMP NOT NULL DEFAULT now()",
 				"updated_at": "TIMESTAMP",
 				"is_deleted": "BOOLEAN NOT NULL DEFAULT FALSE",

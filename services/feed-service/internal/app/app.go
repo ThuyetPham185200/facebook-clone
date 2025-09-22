@@ -1,7 +1,1 @@
-type FeedAPI struct {
-	
-}
-
-func NewFeedAPI() FeedAPI* {
-	
-}
+package app

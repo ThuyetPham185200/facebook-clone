@@ -205,12 +205,12 @@ func (a *App) process(req model.RawRequestData) {
 		return
 	}
 
-	res := a.routeToInternalService(req, requestID, start)
+	res := a.routeToInternalService(req, userID, requestID, start)
 	req.ReplyCh <- res
 }
 
 // ===== Routing =====
-func (a *App) routeToInternalService(req model.RawRequestData, requestID string, start time.Time) model.GatewayResult {
+func (a *App) routeToInternalService(req model.RawRequestData, userID string, requestID string, start time.Time) model.GatewayResult {
 	// Lấy targetURL từ topic
 	targetURL := a.getTargetURL(req)
 	if targetURL == "" {
@@ -228,6 +228,7 @@ func (a *App) routeToInternalService(req model.RawRequestData, requestID string,
 	utils.CopySafeHeaders(req.Header, ireq.Header)
 	ireq.Header.Set("X-Request-ID", requestID)
 	ireq.Header.Set("X-Trace-ID", utils.NewRequestID())
+	ireq.Header.Set("X-User-ID", userID)
 
 	client := &http.Client{}
 	resp, err := client.Do(ireq)
@@ -271,7 +272,6 @@ func (a *App) routeToInternalService(req model.RawRequestData, requestID string,
 	h.Set("Content-Type", "application/json")
 	h.Set("X-Gateway", "api-gateway")
 	h.Set("X-Request-ID", requestID)
-
 	return model.GatewayResult{
 		StatusCode: status,
 		Headers:    h,

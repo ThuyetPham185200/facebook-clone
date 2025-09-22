@@ -2,19 +2,17 @@ package s3client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-
-	"github.com/segmentio/kafka-go"
 )
 
 type S3Client struct {
@@ -24,28 +22,33 @@ type S3Client struct {
 
 // NewS3Client with direct parameters instead of ENV
 func NewS3Client(endpoint, region, accessKey, secretKey, bucket string) *S3Client {
+	customResolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+		return aws.Endpoint{
+			URL:           endpoint,
+			SigningRegion: region,
+		}, nil
+	})
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
-		config.WithEndpointResolver(aws.EndpointResolverFunc(
-			func(service, region string) (aws.Endpoint, error) {
-				return aws.Endpoint{
-					URL:           endpoint,
-					SigningRegion: region,
-				}, nil
-			})),
+		config.WithEndpointResolver(customResolver),
 	)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true // ✅ Important for MinIO
+	})
+
 	return &S3Client{
-		Client: s3.NewFromConfig(cfg),
+		Client: client,
 		Bucket: bucket,
 	}
 }
 
-// Generate a pre-signed PUT URL
+// Generate a pre-signed PUT URL (safe to copy-paste into curl)
 func (s *S3Client) GeneratePreSignedURL(objectKey string, expires time.Duration) string {
 	ps := s3.NewPresignClient(s.Client)
 
@@ -56,58 +59,53 @@ func (s *S3Client) GeneratePreSignedURL(objectKey string, expires time.Duration)
 	if err != nil {
 		log.Fatalf("failed to sign request: %v", err)
 	}
+	// ✅ Wrap with quotes so it's shell-safe
+	return req.URL
+}
+
+// GeneratePreSignedGetURL generates a pre-signed URL for GET requests
+func (s *S3Client) GeneratePreSignedGetURL(objectKey string, expires time.Duration) string {
+	ps := s3.NewPresignClient(s.Client)
+
+	req, err := ps.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: &s.Bucket,
+		Key:    &objectKey,
+	}, s3.WithPresignExpires(expires))
+	if err != nil {
+		log.Fatalf("failed to sign GET request: %v", err)
+	}
 	return req.URL
 }
 
 // Upload directly from Go (simulate user upload)
-func (s *S3Client) UploadFile(objectKey, filePath string) {
+func UploadWithPresignedURL(url string, filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("failed to open file: %v", err)
+		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
-	uploader := manager.NewUploader(s.Client)
-	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
-		Bucket: &s.Bucket,
-		Key:    &objectKey,
-		Body:   file,
-	})
+	req, err := http.NewRequest("PUT", url, file)
 	if err != nil {
-		log.Fatalf("failed to upload: %v", err)
+		return fmt.Errorf("failed to create request: %w", err)
 	}
-	fmt.Println("File uploaded successfully:", objectKey)
-}
 
-// Consume notifications from Kafka for uploaded media
-func (s *S3Client) ListenUploadNotifications(kafkaBroker, topic, groupID string, handle func(objectKey string)) {
-	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{kafkaBroker},
-		Topic:   topic,
-		GroupID: groupID,
-	})
-	fmt.Println("Listening for S3 upload notifications...")
+	// Set Content-Type (optional, e.g., image/png)
+	req.Header.Set("Content-Type", "application/octet-stream")
 
-	for {
-		msg, err := r.ReadMessage(context.Background())
-		if err != nil {
-			log.Println("Error reading Kafka message:", err)
-			continue
-		}
-
-		var event struct {
-			EventName string `json:"EventName"`
-			Key       string `json:"Key"`
-			Bucket    string `json:"Bucket"`
-		}
-		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			log.Println("Failed to parse event:", err)
-			continue
-		}
-
-		if event.EventName == "s3:ObjectCreated:Put" && event.Bucket == s.Bucket {
-			fmt.Println("Upload completed for object:", event.Key)
-			handle(event.Key) // e.g., update medias table in FeedService
-		}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to upload: %w", err)
 	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("upload failed, status: %s, body: %s", resp.Status, string(body))
+	}
+
+	fmt.Println("Upload successful!")
+	return nil
 }
