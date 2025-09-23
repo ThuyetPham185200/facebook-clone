@@ -18,6 +18,7 @@ type UserStore interface {
 	EmailExists(username string) (bool, error)
 	GetUserByUsername(username string) (*model.User, error)
 	SoftDeleteUserProfile(userID string) error
+	GetUserByUserID(userID string) (*model.User, error)
 }
 
 // ---- API Layer ----
@@ -35,6 +36,7 @@ func (api *UserAPI) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/users/exists", api.handleCheckExist).Methods("GET")
 	r.HandleFunc("/users/by-username/{username}", api.handleGetUseridByUsername).Methods("GET")
 	r.HandleFunc("/users/{user_id}", api.handleDeleteUser).Methods("DELETE")
+	r.HandleFunc("/users/{user_id}", api.handleGetUser).Methods("GET")
 }
 
 // ---- Handlers ----
@@ -167,4 +169,39 @@ func (api *UserAPI) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "user deleted successfully",
 	})
+}
+
+func (api *UserAPI) handleGetUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID := vars["user_id"]
+
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "missing userid in path")
+		return
+	}
+
+	log.Printf("[UserAPI] handleDeleteUser called. userID=%s", userID)
+
+	// gọi xuống UserStore để get user
+	// Query DB
+	user, err := api.userstore.GetUserByUserID(userID)
+	if err != nil {
+		log.Printf("[UserAPI] failed to get user_id for username=%s: %v", userID, err)
+		utils.WriteError(w, http.StatusInternalServerError, "DB error")
+		return
+	}
+	if user == nil {
+		utils.WriteError(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	// Response
+	resp := map[string]string{
+		"user_id":    user.UserID,
+		"username":   user.Username,
+		"avatar_url": user.AvatarURL.String,
+		"gender":     user.Gender.String,
+	}
+
+	utils.WriteJSON(w, http.StatusOK, resp)
 }
