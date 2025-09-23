@@ -2,6 +2,7 @@ package workerpocessor
 
 import (
 	"context"
+	"feedservice/internal/core/followserviceclient"
 	"feedservice/internal/infra/redisclient"
 	"feedservice/internal/model"
 	"fmt"
@@ -13,16 +14,19 @@ import (
 
 type FanoutWorker struct {
 	BaseWorkerProcessor
-	redisclient       *redisclient.RedisClient
-	newposteventqueue *chan model.NewPostEvent
+	redisclient         *redisclient.RedisClient
+	followserviceclient *followserviceclient.FollowServiceClient
+	newposteventqueue   *chan model.NewPostEvent
 }
 
-func NewFanoutWorker(newposteventqueue_ *chan model.NewPostEvent, redisclient_ *redisclient.RedisClient) *FanoutWorker {
+func NewFanoutWorker(newposteventqueue_ *chan model.NewPostEvent, redisclient_ *redisclient.RedisClient,
+	followserviceclient_ *followserviceclient.FollowServiceClient) *FanoutWorker {
 	s := &FanoutWorker{
-		redisclient:       redisclient_,
-		newposteventqueue: newposteventqueue_,
+		redisclient:         redisclient_,
+		followserviceclient: followserviceclient_,
+		newposteventqueue:   newposteventqueue_,
 	}
-	s.Init(s) // 🔑 rất quan trọng: gắn HttpServer vào BaseServerProcessor
+	s.Init(s)
 	return s
 }
 
@@ -34,24 +38,55 @@ func (s *FanoutWorker) RunningTask() error {
 	for {
 		select {
 		case newPostEvent := <-*s.newposteventqueue:
-			// Redis key per user
-			key := fmt.Sprintf("user:%s:posts", newPostEvent.UserID)
-			score := float64(time.Now().Unix()) // use timestamp for ordering
+			ctx := context.Background()
+			score := float64(time.Now().Unix())
 
-			// Use raw Redis client
-			err := s.redisclient.GetClient().ZAdd(context.Background(), key, redis.Z{
-				Score:  score,
-				Member: newPostEvent.PostID,
-			}).Err()
+			// 1️⃣ Cache mapping: post_id -> user_id
+			err := s.redisclient.GetClient().HSet(ctx,
+				"post_authors",
+				newPostEvent.PostID,
+				newPostEvent.UserID,
+			).Err()
 			if err != nil {
-				log.Printf("[FanoutWorker] failed to add post to redis: %v", err)
+				log.Printf("[FanoutWorker] failed to cache author for post %s: %v", newPostEvent.PostID, err)
 				continue
 			}
 
-			log.Printf("[FanoutWorker] added post %s to user %s feed", newPostEvent.PostID, newPostEvent.UserID)
+			// 2️⃣ Add to author’s own posts
+			authorPostsKey := fmt.Sprintf("user:%s:posts", newPostEvent.UserID)
+			if err := s.redisclient.GetClient().ZAdd(ctx, authorPostsKey, redis.Z{
+				Score:  score,
+				Member: newPostEvent.PostID,
+			}).Err(); err != nil {
+				log.Printf("[FanoutWorker] failed to add post %s to author %s posts: %v",
+					newPostEvent.PostID, newPostEvent.UserID, err)
+				continue
+			}
+
+			// 3️⃣ Fetch followers from FollowService
+			followers, err := s.followserviceclient.GetFollowers(newPostEvent.UserID)
+			if err != nil {
+				log.Printf("[FanoutWorker] failed to fetch followers for user=%s: %v", newPostEvent.UserID, err)
+				continue
+			}
+
+			// 4️⃣ Fanout to followers’ feeds
+			for _, followerID := range followers {
+				feedKey := fmt.Sprintf("user:%s:feed", followerID)
+				if err := s.redisclient.GetClient().ZAdd(ctx, feedKey, redis.Z{
+					Score:  score,
+					Member: newPostEvent.PostID,
+				}).Err(); err != nil {
+					log.Printf("[FanoutWorker] failed to add post %s to feed of user %s: %v",
+						newPostEvent.PostID, followerID, err)
+					continue
+				}
+				log.Printf("[FanoutWorker] added post %s to feed of user %s",
+					newPostEvent.PostID, followerID)
+			}
 
 		case <-time.After(1 * time.Second):
-			// idle wait to prevent busy loop
+			// idle wait
 		}
 	}
 }
