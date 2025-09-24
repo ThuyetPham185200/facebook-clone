@@ -6,6 +6,7 @@ import (
 	s3 "feedservice/internal/infra/s3client"
 	"feedservice/internal/model"
 	"fmt"
+	"time"
 )
 
 type MediaStore struct {
@@ -95,7 +96,7 @@ func (s *MediaStore) CreateMediaRecord(mediaID string, userID string, mediaType 
 
 	err := s.DBClient.DB.QueryRow(query,
 		mediaID, userID, mediaType, objectkey, mediaStatus,
-	).Scan(&media.MediaID, &media.UserID, &media.MediaType, &media.Url, &media.Status, &media.CreatedAt)
+	).Scan(&media.MediaID, &media.UserID, &media.MediaType, &media.Objectkeys3, &media.Status, &media.CreatedAt)
 
 	if err != nil {
 		return model.Media{}, fmt.Errorf("failed to insert media: %w", err)
@@ -103,6 +104,42 @@ func (s *MediaStore) CreateMediaRecord(mediaID string, userID string, mediaType 
 
 	// Fill extra fields (if any missing from RETURNING)
 	media.MediaFileName = "" // you can later update this field when binding presigned URL file name
+
+	return media, nil
+}
+
+func (s *MediaStore) GetMediaByID(mID string) (model.Media, error) {
+	query := `
+		SELECT media_id, user_id, media_type, objectkeys3, status, created_at
+		FROM medias
+		WHERE media_id = $1
+	`
+
+	var media model.Media
+	var objectkey sql.NullString
+
+	err := s.DBClient.DB.QueryRow(query, mID).Scan(
+		&media.MediaID,
+		&media.UserID,
+		&media.MediaType,
+		&objectkey,
+		&media.Status,
+		&media.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return model.Media{}, nil // not found
+		}
+		return model.Media{}, fmt.Errorf("failed to get media by id %s: %w", mID, err)
+	}
+
+	if objectkey.Valid {
+		// 🔑 Generate a temporary pre-signed URL (e.g., 15m)
+		media.URL = s.S3client.GeneratePreSignedGetURL(objectkey.String, 15*time.Minute)
+	}
+
+	// Optional: fill defaults for non-persistent fields
+	media.MediaFileName = ""
 
 	return media, nil
 }

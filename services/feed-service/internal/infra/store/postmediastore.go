@@ -28,3 +28,28 @@ func (pm *PostMediaStore) LinkMediaToPost(postID string, mediaIDs []string) erro
 	}
 	return nil
 }
+
+func (pm *PostMediaStore) GetMediaByPostID(postID string) ([]string, error) {
+	query := `SELECT media_id FROM post_media WHERE post_id = $1`
+
+	rows, err := pm.DBClient.DB.Query(query, postID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch media for post %s: %w", postID, err)
+	}
+	defer rows.Close()
+
+	var mediaIDs []string
+	for rows.Next() {
+		var mediaID string
+		if err := rows.Scan(&mediaID); err != nil {
+			return nil, fmt.Errorf("failed to scan media_id: %w", err)
+		}
+		mediaIDs = append(mediaIDs, mediaID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	return mediaIDs, nil
+}
